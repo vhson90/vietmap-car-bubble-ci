@@ -42,6 +42,7 @@
 
     <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (42dp x 42dp, cắt tròn sát viền, không có chữ SIM đè lên) -->
     <FrameLayout
+        android:id="@+id/signCircleContainer"
         android:layout_width="42dp"
         android:layout_height="42dp"
         android:layout_marginStart="3dp">
@@ -74,6 +75,7 @@
             android:scaleType="fitCenter" />
 
         <LinearLayout
+            android:id="@+id/alertTextContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"

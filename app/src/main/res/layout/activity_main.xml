@@ -16,7 +16,7 @@
             android:id="@+id/tvHeaderTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="VIETMAP CAR BUBBLE v2.1 • MINI HUD OFFLINE"
+            android:text="VIETMAP CAR BUBBLE v2.2 • MINI HUD OFFLINE"
             android:textColor="#38BDF8"
             android:textSize="19sp"
             android:textStyle="bold" />

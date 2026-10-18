@@ -84,7 +84,7 @@ class SimulationEngineTest {
         assertTrue("Fix 1 hợp lệ phải được chấp nhận", res1.isAccepted)
         assertTrue("Vận tốc Doppler 15 m/s sau hội tụ Kalman phải ~50..55 km/h", res1b.speedKmh in 48..55)
 
-        // 2. Kiểm tra bộ lọc isBetterLocation: Bơm 1 bản tin nhiễu có sai số accuracy = 95m (> 48m)
+        // 2. Kiểm tra bộ lọc isBetterLocation: Bơm 1 bản tin nhiễu có sai số accuracy = 95m (> 65m)
         val noisyFix = fix1.copy(
             lat = 10.775000,
             lon = 106.701000,
@@ -94,10 +94,23 @@ class SimulationEngineTest {
             elapsedRealtimeNanos = baseNanos + 1_000_000_000L
         )
         val resNoisy = calc.processGpsFix(noisyFix, gpsOffsetKmh = 0)
-        assertFalse("Bản tin GPS sai số 95m (> 48m) phải bị từ chối", resNoisy.isAccepted)
+        assertFalse("Bản tin GPS sai số 95m (> 65m) phải bị từ chối", resNoisy.isAccepted)
         assertEquals("REJECTED_NOISE", resNoisy.sourceType)
 
-        // 3. Kiểm tra Geodesic Fallback (khi Android Box không trả về location.speed -> hasSpeed = false)
+        // 2b. Kiểm tra v2.2 Stale Fix Expiry (8 giây): Khi đi vào đường rợp cây (accuracy 45m so với 5m trước đó),
+        // sau 8.5 giây bản tin mới PHẢI được chấp nhận để không bao giờ bị treo vị trí suốt 2 phút!
+        val urbanCanyonFix = fix1.copy(
+            lat = 10.773000,
+            lon = 106.699000,
+            accuracyMeters = 45.0f,
+            speedMetersPerSecond = 12.0f,
+            timeMs = baseTimeMs + 9500L,
+            elapsedRealtimeNanos = baseNanos + 9_500_000_000L
+        )
+        val resUrban = calc.processGpsFix(urbanCanyonFix, gpsOffsetKmh = 0)
+        assertTrue("Bản tin GPS sau > 8s dù accuracy 45m phải được chấp nhận (chống đóng băng vị trí)", resUrban.isAccepted)
+
+        // 3. Kiểm tra Geodesic Fallback & Bearing Anchor (khi Android Box không trả về location.speed/bearing)
         val calcGeo = VietmapSpeedCalculator()
         val geoStart = RawGpsFix(
             lat = 10.770000,
@@ -116,7 +129,7 @@ class SimulationEngineTest {
         )
         calcGeo.processGpsFix(geoStart, gpsOffsetKmh = 0)
 
-        // Dịch chuyển +0.000150 độ vĩ tuyến (~16.68m) mỗi 1.0 giây (1_000_000_000 ns) -> ~60 km/h
+        // Dịch chuyển +0.000150 độ vĩ tuyến (~16.68m về hướng Bắc = 0 độ) mỗi 1.0 giây -> ~60 km/h
         val geoStep1 = geoStart.copy(
             lat = 10.770150,
             timeMs = baseTimeMs + 1000L,
@@ -135,7 +148,7 @@ class SimulationEngineTest {
             elapsedRealtimeNanos = baseNanos + 3_000_000_000L
         )
         val geoRes3 = calcGeo.processGpsFix(geoStep3, gpsOffsetKmh = 0)
-        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.speedKmh} km/h, step2=${geoRes2.speedKmh} km/h, step3=${geoRes3.speedKmh} km/h (${geoRes3.sourceType})")
+        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.speedKmh} km/h, step2=${geoRes2.speedKmh} km/h, step3=${geoRes3.speedKmh} km/h (${geoRes3.sourceType}), bearing=${geoRes3.bearingDegrees}")
         assertEquals("Nguồn tốc độ phải là GEODESIC_FALLBACK", "GEODESIC_FALLBACK", geoRes3.sourceType)
         assertTrue("Tốc độ Geodesic tính từ quãng đường/thời gian phải nằm trong khoảng 45..65 km/h", geoRes3.speedKmh in 45..65)
 

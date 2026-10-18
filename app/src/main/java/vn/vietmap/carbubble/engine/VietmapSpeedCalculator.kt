@@ -22,7 +22,7 @@ data class RawGpsFix(
 )
 
 /**
- * Kết quả tính toán vận tốc & hướng di chuyển theo chuẩn thuật toán Vietmap Live
+ * Kết quả tính toán vận tốc & hướng di chuyển theo chuẩn thuật toán Vietmap Live (v2.2)
  */
 data class ComputedSpeedResult(
     val isAccepted: Boolean,
@@ -33,21 +33,22 @@ data class ComputedSpeedResult(
 )
 
 /**
- * Bộ tính toán vận tốc xe hiện tại học hỏi từ kiến trúc vn.vietmap.lib_location_engine (LocationEngineService):
- * 1. Bộ lọc tọa độ tối ưu isBetterLocation (Lma/a$a): Loại bỏ bản tin nhiễu sai số lớn (> 48m) hoặc nhảy trạm phát sóng.
- * 2. Kết hợp vận tốc sóng mang Doppler (location.speed) và vận tốc hình học Geodesic (Δs / Δt) dùng đồng hồ đơn điệu elapsedRealtimeNanos (Lma/g).
- * 3. Giới hạn gia tốc vật lý tối đa của ô tô (<= 8.5 m/s²) để cắt gai nhiễu GPS dưới gầm cầu vượt / cửa hầm.
- * 4. Bộ lọc Kalman 1D / EMA thích ứng (nhạy khi phanh giảm tốc, mượt khi chạy đều) & Cắt nhiễu dừng đèn đỏ (< 2.4 km/h -> 0 km/h).
- * 5. Bộ đếm Watchdog (3.2 giây không có tín hiệu mới tự động hạ tốc độ về 0 km/h).
+ * Bộ tính toán vận tốc & góc hướng lái xe (v2.2) học hỏi từ vn.vietmap.lib_location_engine:
+ * 1. Bộ lọc tọa độ tối ưu isBetterLocation (cửa sổ hết hạn ngắn 8 giây chống khóa cứng tọa độ khi đi vào đường rợp cây/nhà cao tầng).
+ * 2. Điểm neo góc hướng lái (Bearing Anchor >= 3.2m) giúp cập nhật hướng xe mượt mà ngay cả khi GPS phát tần số cao 500ms (< 2.5m/nhịp).
+ * 3. Kết hợp vận tốc sóng mang Doppler (location.speed) và vận tốc hình học Geodesic (Δs / Δt) dùng đồng hồ đơn điệu elapsedRealtimeNanos.
+ * 4. Giới hạn gia tốc vật lý tối đa của ô tô (<= 8.5 m/s²) + Bộ lọc Kalman 1D + Watchdog 3.2s tự trả về 0 km/h khi dừng đèn đỏ.
  */
 class VietmapSpeedCalculator {
 
     companion object {
-        private const val TWO_MINUTES_MS = 120_000L
-        private const val MAX_ACCEPTABLE_ACCURACY_M = 48.0f
+        // Cửa sổ 8 giây: Sau 8 giây, bản tin mới luôn được ưu tiên dù độ chính xác thấp hơn bản tin cũ (Chống kẹt tọa độ 2 phút!)
+        private const val STALE_FIX_EXPIRY_MS = 8_000L
+        private const val MAX_ACCEPTABLE_ACCURACY_M = 65.0f
         private const val MAX_PHYSICAL_ACCEL_MS2 = 8.5 // Gia tốc ô tô tối đa ~30.6 km/h mỗi giây
         private const val ZERO_SPEED_DEADBAND_KMH = 2.4
         private const val WATCHDOG_TIMEOUT_NANOS = 3_200_000_000L // 3.2 giây
+        private const val BEARING_ANCHOR_MIN_DIST_M = 3.2 // Quãng đường tích lũy tối thiểu để cập nhật hướng lái
     }
 
     private var currentBestFix: RawGpsFix? = null
@@ -57,19 +58,25 @@ class VietmapSpeedCalculator {
     private var lastValidBearing: Float = 0.0f
     private var hasMovingFix: Boolean = false
 
+    // Điểm neo riêng biệt để tính góc hướng lái tích lũy (chống kẹt Bearing khi nhịp GPS 500ms < 2.5m)
+    private var bearingAnchorLat: Double = 0.0
+    private var bearingAnchorLon: Double = 0.0
+
     fun reset() {
         currentBestFix = null
         lastValidSpeedFix = null
         filteredSpeedMs = 0.0
         kalmanErrorCov = 1.0
         hasMovingFix = false
+        bearingAnchorLat = 0.0
+        bearingAnchorLon = 0.0
     }
 
     /**
-     * Xử lý bản tin GPS mới và trả về tốc độ hiện tại (km/h)
+     * Xử lý bản tin GPS mới và trả về tốc độ hiện tại (km/h) cùng góc hướng lái chính xác
      */
     fun processGpsFix(fix: RawGpsFix, gpsOffsetKmh: Int = 0): ComputedSpeedResult {
-        // Bước 1: Kiểm tra chất lượng tọa độ theo thuật toán Lma/a$a->a (isBetterLocation) của Vietmap Live
+        // Bước 1: Kiểm tra chất lượng tọa độ
         if (!isBetterLocation(fix, currentBestFix)) {
             val currentKmh = applyOffsetAndDeadband(filteredSpeedMs * 3.6, gpsOffsetKmh)
             return ComputedSpeedResult(
@@ -95,11 +102,23 @@ class VietmapSpeedCalculator {
             distMeters = haversineMeters(prevFix.lat, prevFix.lon, fix.lat, fix.lon)
         }
 
-        // Bước 2: Cập nhật góc hướng lái (Bearing)
-        if (fix.hasBearing && fix.bearingDegrees > 0f && (!fix.hasSpeed || fix.speedMetersPerSecond >= 0.8f)) {
+        // Bước 2: Cập nhật góc hướng lái (Bearing) với cơ chế Điểm Neo Tích Lũy (Bearing Anchor)
+        if (bearingAnchorLat == 0.0 && bearingAnchorLon == 0.0) {
+            bearingAnchorLat = fix.lat
+            bearingAnchorLon = fix.lon
+        }
+        val distFromAnchor = haversineMeters(bearingAnchorLat, bearingAnchorLon, fix.lat, fix.lon)
+
+        if (fix.hasBearing && fix.bearingDegrees > 0f && (!fix.hasSpeed || fix.speedMetersPerSecond >= 1.1f)) {
             lastValidBearing = fix.bearingDegrees
-        } else if (prevFix != null && distMeters >= 2.5) {
-            lastValidBearing = calculateBearing(prevFix.lat, prevFix.lon, fix.lat, fix.lon).toFloat()
+            if (distFromAnchor >= BEARING_ANCHOR_MIN_DIST_M) {
+                bearingAnchorLat = fix.lat
+                bearingAnchorLon = fix.lon
+            }
+        } else if (distFromAnchor >= BEARING_ANCHOR_MIN_DIST_M) {
+            lastValidBearing = calculateBearing(bearingAnchorLat, bearingAnchorLon, fix.lat, fix.lon).toFloat()
+            bearingAnchorLat = fix.lat
+            bearingAnchorLon = fix.lon
         }
 
         // Bước 3: Xác định vận tốc thô (m/s) kết hợp Doppler & Geodesic Fallback (cho Box CarPlay khuyết speed)
@@ -114,7 +133,6 @@ class VietmapSpeedCalculator {
             candidateSpeedMs = fix.speedMetersPerSecond.toDouble()
             sourceType = "DOPPLER"
 
-            // Kiểm tra chéo với quãng đường dịch chuyển nếu dtSec đủ lớn (chống nhiễu Doppler khi xe đang đỗ dưới mái tôn)
             if (prevFix != null && dtSec in 1.2..8.0) {
                 val geoSpeedMs = distMeters / dtSec
                 val accTolerance = if (fix.hasAccuracy) fix.accuracyMeters.toDouble() else 10.0
@@ -122,12 +140,11 @@ class VietmapSpeedCalculator {
                     candidateSpeedMs = 0.0
                     sourceType = "STATIONARY"
                 } else if (candidateSpeedMs > geoSpeedMs * 3.2 + 8.0 && fix.hasAccuracy && fix.accuracyMeters > 20f) {
-                    // Nếu Doppler vọt cao bất thường khi tín hiệu GPS yếu, lấy trung bình có trọng số với Geodesic
                     candidateSpeedMs = 0.4 * candidateSpeedMs + 0.6 * geoSpeedMs
                 }
             }
         } else if (prevFix != null && dtSec in 0.15..12.0) {
-            // Fallback tính từ quãng đường dịch chuyển Δs / Δt (Dành cho Android Box CarPlay không truyền location.speed)
+            // Fallback tính từ quãng đường dịch chuyển Δs / Δt
             val noiseFloorMeters = if (fix.hasAccuracy) max(1.8, fix.accuracyMeters * 0.22) else 2.2
             if (distMeters >= noiseFloorMeters) {
                 candidateSpeedMs = distMeters / dtSec
@@ -140,14 +157,11 @@ class VietmapSpeedCalculator {
 
         // Bước 4 & 5: Khử gai gia tốc vật lý + Bộ lọc Kalman 1D
         if (candidateSpeedMs <= 0.65) {
-            // Khi xe dừng hoặc gần dừng (< 2.34 km/h), hạ nhanh về 0
             filteredSpeedMs = if (filteredSpeedMs < 1.2) 0.0 else filteredSpeedMs * 0.35
             if (filteredSpeedMs == 0.0) {
                 hasMovingFix = false
             }
         } else if (!hasMovingFix) {
-            // Nhịp di chuyển hợp lệ đầu tiên (khi vừa bật App lúc xe đang chạy hoặc vừa ra khỏi hầm):
-            // Khởi tạo trực tiếp để đồng hồ bắt kịp vận tốc thực ngay lập tức mà không bị trễ
             filteredSpeedMs = candidateSpeedMs
             kalmanErrorCov = 1.0
             hasMovingFix = true
@@ -156,7 +170,6 @@ class VietmapSpeedCalculator {
                 val maxDeltaV = MAX_PHYSICAL_ACCEL_MS2 * dtSec
                 val deltaV = candidateSpeedMs - filteredSpeedMs
                 if (deltaV > maxDeltaV) {
-                    // Chặn gai nhảy vọt tốc độ ảo (GPS spike)
                     candidateSpeedMs = filteredSpeedMs + maxDeltaV
                 }
             }
@@ -172,7 +185,6 @@ class VietmapSpeedCalculator {
 
             val predCov = kalmanErrorCov + processNoiseQ
             val kalmanGain = predCov / (predCov + measurementNoiseR)
-            // Tăng độ nhạy khi xe đang giảm tốc (phanh)
             val effectiveGain = if (candidateSpeedMs < filteredSpeedMs) max(kalmanGain, 0.78) else max(kalmanGain, 0.68)
             filteredSpeedMs += effectiveGain * (candidateSpeedMs - filteredSpeedMs)
             kalmanErrorCov = (1.0 - effectiveGain) * predCov
@@ -191,8 +203,7 @@ class VietmapSpeedCalculator {
     }
 
     /**
-     * Bộ đếm Watchdog (Tương tự GPSSignal.loss trong Vietmap Live):
-     * Tự động hạ tốc độ về 0 km/h nếu quá 3.2 giây không nhận được bản tin GPS mới (xe dừng hẳn hoặc mất sóng).
+     * Bộ đếm Watchdog: Tự động hạ tốc độ về 0 km/h nếu quá 3.2 giây không nhận được bản tin GPS mới
      */
     fun checkWatchdogTimeout(nowElapsedRealtimeNanos: Long, gpsOffsetKmh: Int = 0): Int {
         val lastFix = lastValidSpeedFix ?: return 0
@@ -208,10 +219,11 @@ class VietmapSpeedCalculator {
     }
 
     /**
-     * Thuật toán isBetterLocation nguyên bản từ class Lma/a$a->a trong vn.vietmap.lib_location_engine
+     * Thuật toán isBetterLocation cải tiến v2.2:
+     * - Loại bỏ bản tin sai số ngang quá lớn (> 65m).
+     * - Cửa sổ hết hạn ngắn (8 giây) để khi xe đi từ chỗ thoáng (sai số 2m) vào phố hẹp (sai số 35-50m) không bao giờ bị khóa cứng tọa độ!
      */
     fun isBetterLocation(location: RawGpsFix, currentBestLocation: RawGpsFix?): Boolean {
-        // Loại bỏ ngay những bản tin sai số ngang quá lớn (> 48m)
         if (location.hasAccuracy && location.accuracyMeters > MAX_ACCEPTABLE_ACCURACY_M) {
             return false
         }
@@ -224,32 +236,31 @@ class VietmapSpeedCalculator {
         } else {
             location.timeMs - currentBestLocation.timeMs
         }
-        val isSignificantlyNewer = timeDelta > TWO_MINUTES_MS
-        val isSignificantlyOlder = timeDelta < -TWO_MINUTES_MS
-        val isNewer = timeDelta >= -250L // Dung sai 250ms khi Fused và GPS trả bản tin song song
+        val isSignificantlyNewer = timeDelta > STALE_FIX_EXPIRY_MS
+        val isSignificantlyOlder = timeDelta < -STALE_FIX_EXPIRY_MS
+        val isNewer = timeDelta >= -250L
 
         if (isSignificantlyNewer) return true
         if (isSignificantlyOlder) return false
 
-        // Nếu bản tin trước từ GPS/Fused chính xác cao mà bản tin mới từ Network kém chính xác -> Loại bỏ
         val prevIsSatellite = currentBestLocation.provider.equals("gps", ignoreCase = true) ||
                 currentBestLocation.provider.equals("fused", ignoreCase = true)
         val currIsSatellite = location.provider.equals("gps", ignoreCase = true) ||
                 location.provider.equals("fused", ignoreCase = true)
 
-        if (prevIsSatellite && location.provider.equals("network", ignoreCase = true) && timeDelta < 5_000L) {
+        if (prevIsSatellite && location.provider.equals("network", ignoreCase = true) && timeDelta < 4_000L) {
             return false
         }
 
-        // Nếu bản tin mới đến từ vệ tinh (GPS/Fused) và có độ chính xác tốt (<= 25m) -> Luôn chấp nhận
-        if (isNewer && currIsSatellite && (!location.hasAccuracy || location.accuracyMeters <= 25.0f)) {
+        // Mọi bản tin từ GPS/Fused mới hơn và có sai số <= 45m luôn được chấp nhận ngay lập tức
+        if (isNewer && currIsSatellite && (!location.hasAccuracy || location.accuracyMeters <= 45.0f)) {
             return true
         }
 
         val accuracyDelta = (location.accuracyMeters - currentBestLocation.accuracyMeters).toInt()
         val isLessAccurate = accuracyDelta > 0
         val isMoreAccurate = accuracyDelta < 0
-        val isSignificantlyLessAccurate = accuracyDelta > 30
+        val isSignificantlyLessAccurate = accuracyDelta > 35
 
         val isSameOrCompatibleProvider = (prevIsSatellite && currIsSatellite) ||
                 location.provider.equals(currentBestLocation.provider, ignoreCase = true)
