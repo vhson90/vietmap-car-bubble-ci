@@ -15,6 +15,17 @@ import vn.vietmap.carbubble.service.FloatingBubbleService
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action ?: return
+        if (action == FloatingBubbleService.ACTION_DEBUG_INJECT_GPS) {
+            val svcIntent = Intent(context, FloatingBubbleService::class.java).apply {
+                this.action = FloatingBubbleService.ACTION_DEBUG_INJECT_GPS
+                putExtras(intent)
+            }
+            try {
+                context.startService(svcIntent)
+            } catch (_: Exception) {
+            }
+            return
+        }
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
             action == Intent.ACTION_MY_PACKAGE_REPLACED ||

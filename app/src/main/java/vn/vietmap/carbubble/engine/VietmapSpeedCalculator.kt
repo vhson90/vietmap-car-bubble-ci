@@ -219,10 +219,14 @@ class VietmapSpeedCalculator {
             return true
         }
 
-        val timeDelta = location.timeMs - currentBestLocation.timeMs
+        val timeDelta = if (location.elapsedRealtimeNanos > 0L && currentBestLocation.elapsedRealtimeNanos > 0L) {
+            (location.elapsedRealtimeNanos - currentBestLocation.elapsedRealtimeNanos) / 1_000_000L
+        } else {
+            location.timeMs - currentBestLocation.timeMs
+        }
         val isSignificantlyNewer = timeDelta > TWO_MINUTES_MS
         val isSignificantlyOlder = timeDelta < -TWO_MINUTES_MS
-        val isNewer = timeDelta >= 0L
+        val isNewer = timeDelta >= -250L // Dung sai 250ms khi Fused và GPS trả bản tin song song
 
         if (isSignificantlyNewer) return true
         if (isSignificantlyOlder) return false
