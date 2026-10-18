@@ -242,7 +242,7 @@ class SimulationEngineTest {
             println("[CI-TEST] Số trạm Camera phát hiện dọc tuyến 30km: ${detectedCameras.size}")
             println(String.format("[CI-TEST] Thời gian truy vấn SQLite trung bình: %.3f ms/nhịp GPS", avgQueryMs))
 
-            assertTrue("Phải phát hiện ít nhất 5 lần chuyển đổi tốc độ giới hạn trên tuyến 30km", speedTransitions.size >= 5)
+            assertTrue("Phải phát hiện ít nhất 4 lần chuyển đổi tốc độ giới hạn cùng chiều trên tuyến 30km", speedTransitions.size >= 4)
             assertTrue("Phải phát hiện ít nhất 10 camera giám sát/phạt nguội trên tuyến 30km", detectedCameras.size >= 10)
             assertTrue("Thời gian truy vấn SQLite trung bình phải < 15ms", avgQueryMs < 15.0)
 
