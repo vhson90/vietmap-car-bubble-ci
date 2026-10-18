@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootBubbleContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bubble_pill"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="7dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="10dp"
+    android:paddingBottom="6dp">
+
+    <!-- Cụm 1: Đồng hồ tốc độ thực tế GPS (km/h) -->
+    <LinearLayout
+        android:id="@+id/speedCircleContainer"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_speedometer_normal"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvCurrentSpeed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="0"
+            android:textColor="#38BDF8"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSpeedUnit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="km/h"
+            android:textColor="#94A3B8"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại chuẩn Vietmap -->
+    <FrameLayout
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_marginStart="6dp">
+
+        <ImageView
+            android:id="@+id/ivSpeedLimitSign"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:layout_gravity="center"
+            android:contentDescription="Biển báo tốc độ giới hạn"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/tvModeBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:background="#D90284C7"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="SIM"
+            android:textColor="#FFFFFF"
+            android:textSize="8sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- Cụm 3: Thẻ mở rộng hiển thị Biển báo / Camera phạt nguội sắp tới & khoảng cách (m) -->
+    <LinearLayout
+        android:id="@+id/alertExpandPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="4dp">
+
+        <ImageView
+            android:id="@+id/ivUpcomingAlertIcon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="Biển báo phía trước"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="7dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvUpcomingAlertDistance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="60 km/h"
+                android:textColor="#FBBF24"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvUpcomingAlertName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxWidth="145dp"
+                android:maxLines="1"
+                android:text="Đô thị tiêu chuẩn"
+                android:textColor="#E2E8F0"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

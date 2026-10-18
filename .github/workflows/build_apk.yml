@@ -1,0 +1,39 @@
+name: Build & Test VietmapCarBubble APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+
+      - name: Run Automated 30km Simulation & SQLite Unit Tests
+        run: gradle testDebugUnitTest --info
+
+      - name: Build Debug APK for Android Car Box
+        run: gradle assembleDebug
+
+      - name: Upload APK and Simulation Test Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: VietmapCarBubble-Release-Bundle
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/reports/simulation_ci_report.json
+            app/build/reports/tests/testDebugUnitTest/index.html

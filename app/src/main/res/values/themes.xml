@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VietmapCarBubble" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">#0284C7</item>
+        <item name="colorPrimaryDark">#0B1120</item>
+        <item name="colorAccent">#38BDF8</item>
+        <item name="android:statusBarColor">#0B1120</item>
+        <item name="android:navigationBarColor">#0B1120</item>
+    </style>
+</resources>
