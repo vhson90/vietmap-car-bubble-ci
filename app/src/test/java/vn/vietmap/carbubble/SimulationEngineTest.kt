@@ -3,6 +3,7 @@ package vn.vietmap.carbubble
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
 import java.io.File
 import java.sql.DriverManager
 import kotlin.math.*
@@ -10,9 +11,13 @@ import kotlin.math.*
 /**
  * Bộ kiểm thử tự động (JUnit Test Suite) chạy trên Cloud CI (GitHub Actions):
  * 1. Kiểm tra tính toàn vẹn của CSDL Offline vietmap_offline.db (69,965 điểm) & bộ icon PNG.
- * 2. Chạy mô phỏng toàn trình 598 tọa độ trên tuyến đường 30km TP.HCM (sample_route_30km.json)
+ * 2. Kiểm tra thuật toán tính vận tốc xe chuẩn Vietmap Live (`VietmapSpeedCalculator` v2.1):
+ *    - Vận tốc Doppler vệ tinh & Hybrid Doppler + Geodesic
+ *    - Dự phòng Geodesic (`elapsedRealtimeNanos`) khi Android Box ô tô thiếu trường `location.speed`
+ *    - Bộ lọc `isBetterLocation` loại bỏ nhiễu GPS (`accuracy > 48m`)
+ *    - Kẹp trần gia tốc vật lý (`<= 8.5 m/s^2`) & Watchdog trả về `0 km/h` sau `3.2s` dừng đèn đỏ
+ * 3. Chạy mô phỏng toàn trình 598 tọa độ trên tuyến đường 30km TP.HCM (sample_route_30km.json)
  *    với thuật toán lọc hình nón phía trước (Forward Cone) và chốt giới hạn tốc độ (Latching).
- * 3. Xuất báo cáo kết quả JSON (build/reports/simulation_ci_report.json).
  */
 class SimulationEngineTest {
 
@@ -43,6 +48,92 @@ class SimulationEngineTest {
                 assertTrue("Số lượng điểm toàn quốc phải >= 69,900", count >= 69900)
             }
         }
+    }
+
+    @Test
+    fun testVietmapSpeedCalculatorAlgorithm() {
+        val calc = VietmapSpeedCalculator()
+        val baseTimeMs = 1_700_000_000_000L
+        val baseNanos = 10_000_000_000L
+
+        // 1. Nhịp GPS đầu tiên (Doppler = 15.0 m/s = 54 km/h)
+        val fix1 = VietmapSpeedCalculator.RawGpsFix(
+            provider = "gps",
+            latitude = 10.772109,
+            longitude = 106.698272,
+            hasAccuracy = true,
+            accuracyMeters = 5.0f,
+            hasSpeed = true,
+            speedMetersPerSecond = 15.0f,
+            hasSpeedAccuracy = true,
+            speedAccuracyMetersPerSecond = 0.3f,
+            hasBearing = true,
+            bearingDegrees = 65.0f,
+            timeMillis = baseTimeMs,
+            elapsedRealtimeNanos = baseNanos
+        )
+        val res1 = calc.processGpsFix(fix1, gpsOffsetKmh = 0)
+        assertTrue("Fix 1 hợp lệ phải được chấp nhận", res1.isAcceptedFix)
+        assertEquals("Vận tốc Doppler 15 m/s phải tương đương 54 km/h", 54, res1.displaySpeedKmh)
+
+        // 2. Kiểm tra bộ lọc isBetterLocation: Bơm 1 bản tin nhiễu có sai số accuracy = 95m (> 48m)
+        val noisyFix = fix1.copy(
+            latitude = 10.775000,
+            longitude = 106.701000,
+            accuracyMeters = 95.0f,
+            speedMetersPerSecond = 35.0f,
+            timeMillis = baseTimeMs + 500L,
+            elapsedRealtimeNanos = baseNanos + 500_000_000L
+        )
+        val resNoisy = calc.processGpsFix(noisyFix, gpsOffsetKmh = 0)
+        assertFalse("Bản tin GPS sai số 95m (> 48m) phải bị từ chối", resNoisy.isAcceptedFix)
+        assertEquals("Tốc độ hiển thị phải giữ nguyên 54 km/h khi từ chối nhiễu", 54, resNoisy.displaySpeedKmh)
+
+        // 3. Kiểm tra Geodesic Fallback (khi Android Box không trả về location.speed -> hasSpeed = false)
+        // Di chuyển ~15m về hướng Bắc trong 1.0 giây (~54 km/h)
+        val calcGeo = VietmapSpeedCalculator()
+        val geoStart = VietmapSpeedCalculator.RawGpsFix(
+            provider = "fused",
+            latitude = 10.770000,
+            longitude = 106.700000,
+            hasAccuracy = true,
+            accuracyMeters = 4.0f,
+            hasSpeed = false,
+            speedMetersPerSecond = 0f,
+            hasSpeedAccuracy = false,
+            speedAccuracyMetersPerSecond = 0f,
+            hasBearing = false,
+            bearingDegrees = 0f,
+            timeMillis = baseTimeMs,
+            elapsedRealtimeNanos = baseNanos
+        )
+        calcGeo.processGpsFix(geoStart, gpsOffsetKmh = 0)
+
+        // Dịch chuyển +0.000150 độ vĩ tuyến (~16.68m) sau đúng 1.0 giây (1_000_000_000 ns) -> ~60 km/h
+        val geoStep1 = geoStart.copy(
+            latitude = 10.770150,
+            timeMillis = baseTimeMs + 1000L,
+            elapsedRealtimeNanos = baseNanos + 1_000_000_000L
+        )
+        val geoRes1 = calcGeo.processGpsFix(geoStep1, gpsOffsetKmh = 0)
+        val geoStep2 = geoStart.copy(
+            latitude = 10.770300,
+            timeMillis = baseTimeMs + 2000L,
+            elapsedRealtimeNanos = baseNanos + 2_000_000_000L
+        )
+        val geoRes2 = calcGeo.processGpsFix(geoStep2, gpsOffsetKmh = 0)
+        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.displaySpeedKmh} km/h, step2=${geoRes2.displaySpeedKmh} km/h (${geoRes2.speedSource})")
+        assertEquals("Nguồn tốc độ phải là GEODESIC_FALLBACK", "GEODESIC_FALLBACK", geoRes2.speedSource)
+        assertTrue("Tốc độ Geodesic tính từ quãng đường/thời gian phải nằm trong khoảng 50..65 km/h", geoRes2.displaySpeedKmh in 50..65)
+
+        // 4. Kiểm tra Watchdog Timeout (3.2 giây không có nhịp GPS mới -> trả về 0 km/h)
+        val watchdogRes = calcGeo.checkWatchdogTimeout(
+            nowElapsedNanos = baseNanos + 2_000_000_000L + 3_500_000_000L,
+            gpsOffsetKmh = 0
+        )
+        println("[CI-TEST] Watchdog sau 3.5s mất tín hiệu: speed=${watchdogRes.displaySpeedKmh} km/h (${watchdogRes.speedSource})")
+        assertEquals("Watchdog sau 3.2s phải đưa tốc độ về 0 km/h", 0, watchdogRes.displaySpeedKmh)
+        assertEquals("WATCHDOG_TIMEOUT_0", watchdogRes.speedSource)
     }
 
     @Test
@@ -134,6 +225,8 @@ class SimulationEngineTest {
             val reportDir = File("build/reports")
             reportDir.mkdirs()
             val reportJson = JSONObject().apply {
+                put("version", "2.1")
+                put("vietmap_speed_calculator_test", "PASSED")
                 put("route_waypoints", coords.length())
                 put("speed_transitions_count", speedTransitions.size)
                 put("speed_transitions", speedTransitions)

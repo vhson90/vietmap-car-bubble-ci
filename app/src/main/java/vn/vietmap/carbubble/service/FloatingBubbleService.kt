@@ -24,17 +24,20 @@ import vn.vietmap.carbubble.R
 import vn.vietmap.carbubble.audio.AudioAlertManager
 import vn.vietmap.carbubble.engine.EdogPoint
 import vn.vietmap.carbubble.engine.OfflineSpatialEngine
+import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
 import kotlin.math.*
 
 /**
- * Dịch vụ chạy ngầm (Foreground Service) hiển thị Bong Bóng Tốc Độ Siêu Gọn (v2.0 Mini HUD)
+ * Dịch vụ chạy ngầm (Foreground Service) hiển thị Bong Bóng Tốc Độ Siêu Gọn (v2.1 Mini HUD)
  * đè lên trên mọi ứng dụng (Google Maps, YouTube, Navitel, Apple CarPlay...) trên Android Box ô tô.
  *
- * Cải tiến v2.0:
- * - Thiết kế "2 Vòng Tròn Đôi Siêu Gọn" (~92x48dp), giảm 68% diện tích chiếm chỗ.
- * - Tự động ẩn phần mở rộng (Smart Auto-Collapse) khi không có Camera/Biển báo trong tầm 350m.
- * - Cắt bo tròn (Circular Crop) loại bỏ hoàn toàn viền vuông đen thừa của ảnh biển báo tốc độ.
- * - Tự động hút sát mép màn hình (Auto Edge-Snap) & Tự làm mờ bán trong suốt khi rảnh (Idle Alpha).
+ * Cải tiến v2.1:
+ * - Tích hợp bộ tính vận tốc chuẩn Vietmap Live (`VietmapSpeedCalculator`):
+ *   + Thu thập đồng thời FusedProvider + GPSProvider với `minDistance = 0f` (cập nhật ngay cả khi xe dừng đèn đỏ).
+ *   + Bộ lọc `isBetterLocation` loại bỏ nhiễu tín hiệu (`accuracy > 48m`).
+ *   + Kết hợp vận tốc Doppler vệ tinh & vận tốc Geodesic (`elapsedRealtimeNanos`) cho Android Box thiếu trường `speed`.
+ *   + Bộ lọc Kalman 1 chiều + Chặn vọt gai gia tốc (`<= 8.5 m/s^2`) + Watchdog tự trả tốc độ về `0 km/h` sau `3.2s` đứng yên.
+ * - Loại bỏ nhãn SIM trên biển báo tốc độ; Chế độ giả lập tách biệt hoàn toàn thành công cụ Debug nội bộ.
  */
 class FloatingBubbleService : Service(), LocationListener {
 
@@ -51,6 +54,8 @@ class FloatingBubbleService : Service(), LocationListener {
         const val KEY_OVERSPEED_THRESHOLD = "overspeed_threshold_kmh"
         const val KEY_VOICE_ENABLED = "voice_enabled"
         const val KEY_AUTO_START_BOOT = "auto_start_boot"
+        const val KEY_AUTO_START_ON_OPEN = "auto_start_on_open"
+        const val KEY_AUTO_MINIMIZE_ON_START = "auto_minimize_on_start"
         const val KEY_BUBBLE_X = "bubble_pos_x"
         const val KEY_BUBBLE_Y = "bubble_pos_y"
         const val KEY_BUBBLE_SCALE = "bubble_scale_percent"   // 70..130 (Mặc định 100%)
@@ -61,6 +66,7 @@ class FloatingBubbleService : Service(), LocationListener {
         const val ACTION_STOP_BUBBLE = "vn.vietmap.carbubble.ACTION_STOP_BUBBLE"
         const val ACTION_RELOAD_SETTINGS = "vn.vietmap.carbubble.ACTION_RELOAD_SETTINGS"
         const val ACTION_RESET_SIMULATION = "vn.vietmap.carbubble.ACTION_RESET_SIMULATION"
+        const val ACTION_DEBUG_INJECT_GPS = "vn.vietmap.carbubble.ACTION_DEBUG_INJECT_GPS"
 
         const val ACTION_STATE_BROADCAST = "vn.vietmap.carbubble.ACTION_STATE_BROADCAST"
 
@@ -73,6 +79,7 @@ class FloatingBubbleService : Service(), LocationListener {
     private lateinit var windowManager: WindowManager
     private lateinit var spatialEngine: OfflineSpatialEngine
     private lateinit var audioManager: AudioAlertManager
+    private val speedCalculator = VietmapSpeedCalculator()
     private var locationManager: LocationManager? = null
 
     private var bubbleView: View? = null
@@ -88,7 +95,6 @@ class FloatingBubbleService : Service(), LocationListener {
     private var ivUpcomingAlertIcon: ImageView? = null
     private var tvUpcomingAlertDistance: TextView? = null
     private var tvUpcomingAlertName: TextView? = null
-    private var tvModeBadge: TextView? = null
 
     private val bitmapCache = HashMap<String, Bitmap>()
     private var currentLimitAssetPath: String = ""
@@ -103,13 +109,12 @@ class FloatingBubbleService : Service(), LocationListener {
     private var idleAlphaPercent: Int = 78
     private var isUltraMiniMode: Boolean = false
 
-    // Trạng thái di chuyển thực tế / mô phỏng
+    // Trạng thái di chuyển thực tế / debug
     private var currentLat: Double = 10.772109
     private var currentLon: Double = 106.698272
     private var currentBearing: Float = 65.0f
     private var currentSpeedKmh: Int = 0
-    private var lastKnownGpsLat: Double = 0.0
-    private var lastKnownGpsLon: Double = 0.0
+    private var lastSpeedSource: String = "IDLE_0"
 
     private data class RouteWaypoint(val lat: Double, val lon: Double)
     private val simRoutePoints = ArrayList<RouteWaypoint>()
@@ -125,6 +130,27 @@ class FloatingBubbleService : Service(), LocationListener {
         }
     }
 
+    /**
+     * Bộ canh thời gian Watchdog (chu kỳ 1.0 giây) cho chế độ GPS thực tế:
+     * Tự động trả vận tốc về 0 km/h nếu xe dừng đèn đỏ hoặc đi vào hầm mất sóng quá 3.2 giây.
+     */
+    private val gpsWatchdogRunnable = object : Runnable {
+        override fun run() {
+            if (!isServiceRunning || isSimulationMode) return
+            val watchdogRes = speedCalculator.checkWatchdogTimeout(
+                nowElapsedNanos = SystemClock.elapsedRealtimeNanos(),
+                gpsOffsetKmh = gpsOffsetKmh
+            )
+            if (watchdogRes.speedSource == "WATCHDOG_TIMEOUT_0" && currentSpeedKmh != 0) {
+                currentSpeedKmh = 0
+                lastSpeedSource = watchdogRes.speedSource
+                Log.i(TELEMETRY_TAG, "GPS_WATCHDOG_ZERO: Không có nhịp GPS mới sau 3.2s -> Trả vận tốc về 0 km/h")
+                processSpatialQueryAndUpdateUI()
+            }
+            mainHandler.postDelayed(this, 1000L)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         isServiceRunning = true
@@ -133,14 +159,14 @@ class FloatingBubbleService : Service(), LocationListener {
 
         spatialEngine = OfflineSpatialEngine(this)
         val dbOk = spatialEngine.initializeDatabase()
-        Log.i(TELEMETRY_TAG, "INIT_SERVICE_V2_COMPACT: db_initialized=$dbOk")
+        Log.i(TELEMETRY_TAG, "INIT_SERVICE_V2_1: db_initialized=$dbOk")
 
         audioManager = AudioAlertManager(this)
 
         loadSettings()
         loadSample30KmRoute()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildForegroundNotification("Mini HUD đang hoạt động"))
+        startForeground(NOTIFICATION_ID, buildForegroundNotification("Mini HUD v2.1 đang hoạt động"))
 
         createFloatingBubbleWindow()
         applyLocationMode()
@@ -151,11 +177,15 @@ class FloatingBubbleService : Service(), LocationListener {
             val editor = prefs.edit()
             var hasOverrides = false
             if (intent.hasExtra("is_sim")) {
-                editor.putBoolean(KEY_IS_SIMULATION, intent.getBooleanExtra("is_sim", true))
+                editor.putBoolean(KEY_IS_SIMULATION, intent.getBooleanExtra("is_sim", false))
                 hasOverrides = true
             }
             if (intent.hasExtra("sim_speed")) {
                 editor.putInt(KEY_SIM_SPEED_OVERRIDE, intent.getIntExtra("sim_speed", 0))
+                hasOverrides = true
+            }
+            if (intent.hasExtra("gps_offset")) {
+                editor.putInt(KEY_GPS_OFFSET_KMH, intent.getIntExtra("gps_offset", 0))
                 hasOverrides = true
             }
             if (intent.hasExtra("sim_index")) {
@@ -202,6 +232,11 @@ class FloatingBubbleService : Service(), LocationListener {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_DEBUG_INJECT_GPS -> {
+                if (intent != null) {
+                    handleDebugInjectedGpsFix(intent)
+                }
+            }
             ACTION_RELOAD_SETTINGS, ACTION_START_BUBBLE -> {
                 val oldSimMode = isSimulationMode
                 loadSettings()
@@ -224,7 +259,7 @@ class FloatingBubbleService : Service(), LocationListener {
     private fun loadSettings() {
         isSimulationMode = prefs.getBoolean(KEY_IS_SIMULATION, false)
         simSpeedOverrideKmh = prefs.getInt(KEY_SIM_SPEED_OVERRIDE, 0)
-        gpsOffsetKmh = prefs.getInt(KEY_GPS_OFFSET_KMH, 0)
+        gpsOffsetKmh = prefs.getInt(KEY_GPS_OFFSET_KMH, 0).coerceIn(-5, 5)
         overspeedThresholdKmh = prefs.getInt(KEY_OVERSPEED_THRESHOLD, 3)
         bubbleScalePercent = prefs.getInt(KEY_BUBBLE_SCALE, 100).coerceIn(70, 130)
         idleAlphaPercent = prefs.getInt(KEY_IDLE_ALPHA, 78).coerceIn(50, 100)
@@ -251,7 +286,6 @@ class FloatingBubbleService : Service(), LocationListener {
         ivUpcomingAlertIcon = bubbleView?.findViewById(R.id.ivUpcomingAlertIcon)
         tvUpcomingAlertDistance = bubbleView?.findViewById(R.id.tvUpcomingAlertDistance)
         tvUpcomingAlertName = bubbleView?.findViewById(R.id.tvUpcomingAlertName)
-        tvModeBadge = bubbleView?.findViewById(R.id.tvModeBadge)
 
         setAssetImage(ivSpeedLimitSign, "speed/60.png", isSpeedSign = true)
         applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = false)
@@ -389,39 +423,70 @@ class FloatingBubbleService : Service(), LocationListener {
     @SuppressLint("MissingPermission")
     private fun applyLocationMode() {
         mainHandler.removeCallbacks(simulationRunnable)
+        mainHandler.removeCallbacks(gpsWatchdogRunnable)
         try {
             locationManager?.removeUpdates(this)
         } catch (_: Exception) {
         }
 
         if (isSimulationMode) {
-            tvModeBadge?.visibility = View.VISIBLE
-            tvModeBadge?.text = "SIM"
+            lastSpeedSource = "DEBUG_SIM_30KM"
             mainHandler.post(simulationRunnable)
-            updateForegroundNotification("Mini HUD • Mô phỏng 30km TP.HCM")
-            Log.i(TELEMETRY_TAG, "MODE_SWITCH: SIMULATION_30KM_ACTIVE")
+            updateForegroundNotification("Mini HUD • [DEBUG] Giả lập 30km")
+            Log.i(TELEMETRY_TAG, "MODE_SWITCH: DEBUG_SIMULATION_30KM_ACTIVE")
         } else {
-            tvModeBadge?.visibility = View.GONE
+            speedCalculator.reset()
+            currentSpeedKmh = 0
+            lastSpeedSource = "REAL_GPS_INIT"
             locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
             try {
-                if (locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true) {
+                val allProviders = locationManager?.allProviders ?: emptyList()
+
+                // 1. Đăng ký Fused Location Provider (kết hợp GPS + Gia tốc kế quán tính IMU giống Vietmap Live)
+                if (allProviders.contains("fused")) {
+                    try {
+                        locationManager?.requestLocationUpdates(
+                            "fused",
+                            500L,
+                            0.0f, // minDistance = 0f để nhận bản tin 0 km/h ngay cả khi xe dừng đèn đỏ
+                            this
+                        )
+                        Log.i(TELEMETRY_TAG, "GPS_PROVIDER_REGISTERED: fused (minTime=500ms, minDist=0m)")
+                    } catch (_: Exception) {
+                    }
+                }
+
+                // 2. Đăng ký vệ tinh phần cứng GPS_PROVIDER (minDistance = 0f)
+                if (allProviders.contains(LocationManager.GPS_PROVIDER) &&
+                    locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
+                ) {
                     locationManager?.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER,
                         500L,
-                        1.0f,
+                        0.0f,
                         this
                     )
+                    Log.i(TELEMETRY_TAG, "GPS_PROVIDER_REGISTERED: gps (minTime=500ms, minDist=0m)")
                 }
-                if (locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true) {
+
+                // 3. Đăng ký Network Provider dự phòng khi xe mới khởi động trong hầm/mái che
+                if (allProviders.contains(LocationManager.NETWORK_PROVIDER) &&
+                    locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
+                ) {
                     locationManager?.requestLocationUpdates(
                         LocationManager.NETWORK_PROVIDER,
                         1000L,
-                        2.0f,
+                        0.0f,
                         this
                     )
                 }
-                updateForegroundNotification("Mini HUD • Đang thu tín hiệu GPS")
-                Log.i(TELEMETRY_TAG, "MODE_SWITCH: REAL_GPS_ACTIVE")
+
+                // Khởi chạy Watchdog kiểm tra mất tín hiệu / dừng xe mỗi 1 giây
+                mainHandler.postDelayed(gpsWatchdogRunnable, 1000L)
+                processSpatialQueryAndUpdateUI()
+
+                updateForegroundNotification("Mini HUD • Đang thu tín hiệu GPS thực tế")
+                Log.i(TELEMETRY_TAG, "MODE_SWITCH: REAL_GPS_ACTIVE (VietmapSpeedCalculator v2.1)")
             } catch (e: SecurityException) {
                 Log.e(TAG, "Thiếu quyền truy cập GPS: ${e.message}")
             }
@@ -431,26 +496,89 @@ class FloatingBubbleService : Service(), LocationListener {
     override fun onLocationChanged(location: Location) {
         if (isSimulationMode) return
 
-        currentLat = location.latitude
-        currentLon = location.longitude
-
-        val rawSpeedKmh = if (location.hasSpeed()) {
-            (location.speed * 3.6f).roundToInt()
+        val elapsedNanos = if (location.elapsedRealtimeNanos > 0L) {
+            location.elapsedRealtimeNanos
         } else {
-            0
+            SystemClock.elapsedRealtimeNanos()
         }
-        currentSpeedKmh = if (rawSpeedKmh <= 2) 0 else max(0, rawSpeedKmh + gpsOffsetKmh)
+        val hasSpeedAcc = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()
+        val speedAccMs = if (hasSpeedAcc && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            location.speedAccuracyMetersPerSecond
+        } else {
+            0f
+        }
 
-        if (location.hasBearing() && location.bearing > 0f) {
-            currentBearing = location.bearing
-        } else if (lastKnownGpsLat != 0.0 && lastKnownGpsLon != 0.0) {
-            val movedDist = haversineMeters(lastKnownGpsLat, lastKnownGpsLon, currentLat, currentLon)
-            if (movedDist >= 3.5) {
-                currentBearing = calculateBearing(lastKnownGpsLat, lastKnownGpsLon, currentLat, currentLon).toFloat()
-            }
+        val rawFix = VietmapSpeedCalculator.RawGpsFix(
+            provider = location.provider ?: LocationManager.GPS_PROVIDER,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            hasAccuracy = location.hasAccuracy(),
+            accuracyMeters = if (location.hasAccuracy()) location.accuracy else 12f,
+            hasSpeed = location.hasSpeed(),
+            speedMetersPerSecond = if (location.hasSpeed()) location.speed else 0f,
+            hasSpeedAccuracy = hasSpeedAcc,
+            speedAccuracyMetersPerSecond = speedAccMs,
+            hasBearing = location.hasBearing(),
+            bearingDegrees = if (location.hasBearing()) location.bearing else 0f,
+            timeMillis = if (location.time > 0L) location.time else System.currentTimeMillis(),
+            elapsedRealtimeNanos = elapsedNanos
+        )
+
+        applyRawGpsFixWithVietmapEngine(rawFix)
+    }
+
+    /**
+     * Cho phép bơm bản tin GPS thực nghiệm qua ADB (`ACTION_DEBUG_INJECT_GPS`) khi kiểm thử tự động
+     * trên trình giả lập để xác minh trực tiếp thuật toán `VietmapSpeedCalculator` ở chế độ Real GPS.
+     */
+    private fun handleDebugInjectedGpsFix(intent: Intent) {
+        if (isSimulationMode) {
+            isSimulationMode = false
+            prefs.edit().putBoolean(KEY_IS_SIMULATION, false).apply()
+            applyLocationMode()
         }
-        lastKnownGpsLat = currentLat
-        lastKnownGpsLon = currentLon
+        val lat = intent.getDoubleExtra("lat", currentLat)
+        val lon = intent.getDoubleExtra("lon", currentLon)
+        val hasSpeed = intent.getBooleanExtra("has_speed", true)
+        val speedMs = intent.getFloatExtra("speed_ms", 0f)
+        val accM = intent.getFloatExtra("acc_m", 6.0f)
+        val hasBearing = intent.getBooleanExtra("has_bearing", false)
+        val bearingDeg = intent.getFloatExtra("bearing_deg", currentBearing)
+        val provider = intent.getStringExtra("provider") ?: LocationManager.GPS_PROVIDER
+
+        val rawFix = VietmapSpeedCalculator.RawGpsFix(
+            provider = provider,
+            latitude = lat,
+            longitude = lon,
+            hasAccuracy = true,
+            accuracyMeters = accM,
+            hasSpeed = hasSpeed,
+            speedMetersPerSecond = speedMs,
+            hasSpeedAccuracy = hasSpeed,
+            speedAccuracyMetersPerSecond = 0.4f,
+            hasBearing = hasBearing,
+            bearingDegrees = bearingDeg,
+            timeMillis = System.currentTimeMillis(),
+            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+        )
+        applyRawGpsFixWithVietmapEngine(rawFix)
+    }
+
+    private fun applyRawGpsFixWithVietmapEngine(rawFix: VietmapSpeedCalculator.RawGpsFix) {
+        val calcResult = speedCalculator.processGpsFix(rawFix, gpsOffsetKmh)
+        if (!calcResult.isAcceptedFix) {
+            Log.w(
+                TELEMETRY_TAG,
+                "GPS_FIX_REJECTED: provider=${rawFix.provider} acc=${rawFix.accuracyMeters}m reason=${calcResult.speedSource}"
+            )
+            return
+        }
+
+        currentLat = rawFix.latitude
+        currentLon = rawFix.longitude
+        currentSpeedKmh = calcResult.displaySpeedKmh
+        currentBearing = calcResult.bearingDegrees
+        lastSpeedSource = calcResult.speedSource
 
         processSpatialQueryAndUpdateUI()
     }
@@ -503,12 +631,13 @@ class FloatingBubbleService : Service(), LocationListener {
         Log.i(
             TELEMETRY_TAG,
             String.format(
-                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h | limit=%d km/h | overspeed=%b | nearby=%d | alert=%s",
+                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h (%s) | limit=%d km/h | overspeed=%b | nearby=%d | alert=%s",
                 simRouteIndex,
                 currentLat,
                 currentLon,
                 currentBearing,
                 currentSpeedKmh,
+                lastSpeedSource,
                 result.currentSpeedLimit,
                 isOverspeed,
                 result.nearbyPointCount,
@@ -529,6 +658,7 @@ class FloatingBubbleService : Service(), LocationListener {
         val bIntent = Intent(ACTION_STATE_BROADCAST).apply {
             setPackage(packageName)
             putExtra("speed_kmh", currentSpeedKmh)
+            putExtra("speed_source", lastSpeedSource)
             putExtra("speed_limit", result.currentSpeedLimit)
             putExtra("zone_name", result.activeZoneName)
             putExtra("lat", currentLat)
@@ -649,7 +779,6 @@ class FloatingBubbleService : Service(), LocationListener {
         val canvas = Canvas(output)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val radius = size / 2f
-        // Cắt sát mép vòng tròn đỏ của biển báo (bán kính 94% để loại bỏ hoàn toàn viền đen ngoài cùng)
         canvas.drawCircle(radius, radius, radius * 0.94f, paint)
         paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
         val left = (src.width - size) / 2f
@@ -712,7 +841,7 @@ class FloatingBubbleService : Service(), LocationListener {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_bubble)
-            .setContentTitle("Vietmap Car Bubble v2.0 (Mini HUD)")
+            .setContentTitle("Vietmap Car Bubble v2.1 (Mini HUD)")
             .setContentText(statusText)
             .setContentIntent(pendingOpen)
             .setOngoing(true)
@@ -728,6 +857,7 @@ class FloatingBubbleService : Service(), LocationListener {
     override fun onDestroy() {
         isServiceRunning = false
         mainHandler.removeCallbacks(simulationRunnable)
+        mainHandler.removeCallbacks(gpsWatchdogRunnable)
         try {
             locationManager?.removeUpdates(this)
         } catch (_: Exception) {

@@ -40,7 +40,7 @@
             android:textSize="7.5sp" />
     </LinearLayout>
 
-    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (42dp x 42dp, cắt tròn sát viền) -->
+    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (42dp x 42dp, cắt tròn sát viền, không có chữ SIM đè lên) -->
     <FrameLayout
         android:layout_width="42dp"
         android:layout_height="42dp"
@@ -53,20 +53,6 @@
             android:layout_gravity="center"
             android:contentDescription="Biển báo tốc độ giới hạn"
             android:scaleType="fitCenter" />
-
-        <TextView
-            android:id="@+id/tvModeBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:background="#CC0284C7"
-            android:paddingStart="3dp"
-            android:paddingEnd="3dp"
-            android:text="SIM"
-            android:textColor="#FFFFFF"
-            android:textSize="6.5sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
     </FrameLayout>
 
     <!-- Cụm 3: Nhãn Cảnh báo Thông minh (MẶC ĐỊNH ẨN - Chỉ hiện khi có Camera/Biển báo < 350m) -->
