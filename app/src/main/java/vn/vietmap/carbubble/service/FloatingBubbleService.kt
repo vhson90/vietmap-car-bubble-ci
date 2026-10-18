@@ -369,12 +369,19 @@ class FloatingBubbleService : Service(), LocationListener {
         if (bubbleScalePercent != lastAppliedScalePercent) {
             lastAppliedScalePercent = bubbleScalePercent
 
-            // 1. Padding của viền ngoài cùng (bg_bubble_pill)
+            // 1. Vẽ lại khung viền ngoài cùng (Pill Background) với bán kính bo tròn, độ dày viền và Padding tỷ lệ 100% theo scale
+            val pillDrawable = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(0xCC0B1120.toInt())
+                cornerRadius = dpToPx(34f * scale).toFloat()
+                setStroke(dpToPx(1.4f * scale), 0x7538BDF8)
+            }
+            rootBubbleContainer?.background = pillDrawable
             rootBubbleContainer?.setPadding(
-                dpToPx(3f * scale),
-                dpToPx(3f * scale),
-                dpToPx(4f * scale),
-                dpToPx(3f * scale)
+                dpToPx(4.5f * scale),
+                dpToPx(4.5f * scale),
+                dpToPx(6.0f * scale),
+                dpToPx(4.5f * scale)
             )
 
             // 2. Vòng tròn đồng hồ tốc độ hiện tại (Chuẩn 44dp * scale)

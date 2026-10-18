@@ -307,11 +307,13 @@ class OfflineSpatialEngine(private val context: Context) {
 
         // Ưu tiên chọn điểm cảnh báo quan trọng gần nhất phía trước
         val bestUpcoming = forwardAlerts.minByOrNull { pt ->
-            val priorityWeight = when (pt.type) {
-                4 -> 0.85 // Ưu tiên số 1: Camera phạt nguội / tốc độ
-                1 -> 0.90 // Ưu tiên số 2: Biển giới hạn tốc độ
-                2, 3 -> 0.95 // Khu dân cư
-                else -> 1.0
+            val priorityWeight = when {
+                pt.type == 4 -> 0.55 // Ưu tiên số 1: Camera phạt nguội / bắn tốc độ
+                pt.type == 1 && pt.speedLimit != latchedSpeedLimit -> 0.65 // Ưu tiên số 2: Biển ĐỔI giới hạn tốc độ mới
+                pt.type in listOf(2, 3) -> 0.75 // Biển Khu dân cư / Hết KDC
+                pt.type in listOf(9, 12) -> 0.85 // Camera giám sát / Đèn đỏ
+                pt.type == 1 && pt.speedLimit == latchedSpeedLimit -> 1.60 // Biển nhắc lại cùng tốc độ hiện tại
+                else -> 1.10
             }
             pt.distanceMeters * priorityWeight
         }
@@ -380,9 +382,10 @@ class OfflineSpatialEngine(private val context: Context) {
 
     private fun isSignDirectionMatched(carBearing: Double, signAngle: Int, dirFlag: Int): Boolean {
         if (dirFlag == 0 || signAngle <= 0 || signAngle > 360) return true
+        // Chỉ khớp các biển báo / camera cùng chiều di chuyển của xe (chênh lệch góc <= 48°),
+        // tuyệt đối không bắt nhầm biển báo / camera của làn ngược chiều bên kia con lươn!
         val diffSame = angleDiff(carBearing, signAngle.toDouble())
-        val diffOpposite = angleDiff((carBearing + 180.0) % 360.0, signAngle.toDouble())
-        return (diffSame <= 45.0) || (diffOpposite <= 45.0)
+        return diffSame <= 48.0
     }
 
     fun close() {

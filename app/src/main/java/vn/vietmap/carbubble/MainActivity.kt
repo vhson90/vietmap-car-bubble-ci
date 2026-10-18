@@ -618,7 +618,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             btnGrantPermissions.visibility = View.GONE
             if (FloatingBubbleService.isServiceRunning) {
-                tvStatusBanner.text = "🟢 MINI HUD v2.1 ĐANG CHẠY • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
+                tvStatusBanner.text = "🟢 MINI HUD v2.2 ĐANG CHẠY • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
                 tvStatusBanner.setTextColor(0xFF34D399.toInt())
                 btnToggleBubble.text = "⏹ TẮT BONG BÓNG TỐC ĐỘ"
                 btnToggleBubble.setBackgroundColor(0xFFDC2626.toInt())

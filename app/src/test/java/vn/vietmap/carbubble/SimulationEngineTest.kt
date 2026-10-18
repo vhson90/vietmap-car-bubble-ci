@@ -250,7 +250,7 @@ class SimulationEngineTest {
             val reportDir = File("build/reports")
             reportDir.mkdirs()
             val reportJson = JSONObject().apply {
-                put("version", "2.1")
+                put("version", "2.2")
                 put("vietmap_speed_calculator_test", "PASSED")
                 put("route_waypoints", coords.length())
                 put("speed_transitions_count", speedTransitions.size)
@@ -266,8 +266,7 @@ class SimulationEngineTest {
     private fun isSignDirectionMatched(carBearing: Double, signAngle: Int, dirFlag: Int): Boolean {
         if (dirFlag == 0 || signAngle <= 0 || signAngle > 360) return true
         val diffSame = angleDiff(carBearing, signAngle.toDouble())
-        val diffOpposite = angleDiff((carBearing + 180.0) % 360.0, signAngle.toDouble())
-        return (diffSame <= 50.0) || (diffOpposite <= 50.0)
+        return diffSame <= 48.0
     }
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
