@@ -647,6 +647,12 @@ class FloatingBubbleService : Service(), LocationListener {
             spatialEngine.resetLatchedState(60)
             audioManager.resetHistory()
         }
+        val customScale = intent.getIntExtra("scale_pct", -1)
+        if (customScale in 70..135) {
+            bubbleScalePercent = customScale
+            prefs.edit().putInt(KEY_BUBBLE_SCALE, customScale).apply()
+            applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = true)
+        }
 
         val lat = intent.getStringExtra("lat_s")?.toDoubleOrNull()
             ?: if (intent.hasExtra("lat")) intent.getFloatExtra("lat", currentLat.toFloat()).toDouble() else currentLat

@@ -148,7 +148,7 @@ class SimulationEngineTest {
             elapsedRealtimeNanos = baseNanos + 3_000_000_000L
         )
         val geoRes3 = calcGeo.processGpsFix(geoStep3, gpsOffsetKmh = 0)
-        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.speedKmh} km/h, step2=${geoRes2.speedKmh} km/h, step3=${geoRes3.speedKmh} km/h (${geoRes3.sourceType}), bearing=${geoRes3.bearingDegrees}")
+        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.speedKmh} km/h, step2=${geoRes2.speedKmh} km/h, step3=${geoRes3.speedKmh} km/h (${geoRes3.sourceType}), bearing=${geoRes3.bearingDeg}")
         assertEquals("Nguồn tốc độ phải là GEODESIC_FALLBACK", "GEODESIC_FALLBACK", geoRes3.sourceType)
         assertTrue("Tốc độ Geodesic tính từ quãng đường/thời gian phải nằm trong khoảng 45..65 km/h", geoRes3.speedKmh in 45..65)
 
