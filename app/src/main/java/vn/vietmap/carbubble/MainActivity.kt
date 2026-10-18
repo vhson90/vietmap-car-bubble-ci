@@ -15,9 +15,8 @@ import androidx.core.content.ContextCompat
 import vn.vietmap.carbubble.service.FloatingBubbleService
 
 /**
- * Màn hình điều khiển trung tâm (Dashboard) được thiết kế tối ưu cho màn hình ngang/dọc của Android Car Box.
- * Hỗ trợ điều khiển tự động qua ADB Intent Extras (auto_start_bubble, is_sim, sim_speed, sim_index)
- * phục vụ kiểm thử tự động trên giả lập.
+ * Màn hình điều khiển trung tâm (Dashboard v2.0) hỗ trợ tùy chỉnh kích thước bong bóng siêu gọn,
+ * độ trong suốt tự làm mờ khi đường thông thoáng, và chế độ tối giản 2 vòng tròn.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -42,6 +41,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvLiveZoneName: TextView
     private lateinit var tvLiveUpcomingAlert: TextView
     private lateinit var tvLiveCoords: TextView
+
+    // Compact Bubble Customization Controls
+    private lateinit var sbBubbleScale: SeekBar
+    private lateinit var tvBubbleScaleLabel: TextView
+    private lateinit var sbIdleAlpha: SeekBar
+    private lateinit var tvIdleAlphaLabel: TextView
+    private lateinit var swUltraMiniMode: Switch
 
     // Settings Sliders & Switches
     private lateinit var sbSimSpeedOverride: SeekBar
@@ -90,7 +96,7 @@ class MainActivity : AppCompatActivity() {
                 tvLiveUpcomingAlert.text = "⚠️ Cách ${alertDist}m: $alertName"
                 tvLiveUpcomingAlert.setTextColor(0xFFFBBF24.toInt())
             } else {
-                tvLiveUpcomingAlert.text = "✅ Phía trước 450m thông thoáng, không có camera phạt nguội"
+                tvLiveUpcomingAlert.text = "✅ Phía trước thông thoáng (Bong bóng tự thu gọn 2 vòng tròn)"
                 tvLiveUpcomingAlert.setTextColor(0xFF34D399.toInt())
             }
         }
@@ -129,9 +135,21 @@ class MainActivity : AppCompatActivity() {
             editor.putInt(FloatingBubbleService.KEY_SIM_SPEED_OVERRIDE, intent.getIntExtra("sim_speed", 0))
             changed = true
         }
+        if (intent.hasExtra("bubble_scale")) {
+            editor.putInt(FloatingBubbleService.KEY_BUBBLE_SCALE, intent.getIntExtra("bubble_scale", 100))
+            changed = true
+        }
+        if (intent.hasExtra("idle_alpha")) {
+            editor.putInt(FloatingBubbleService.KEY_IDLE_ALPHA, intent.getIntExtra("idle_alpha", 78))
+            changed = true
+        }
+        if (intent.hasExtra("ultra_mini")) {
+            editor.putBoolean(FloatingBubbleService.KEY_ULTRA_MINI, intent.getBooleanExtra("ultra_mini", false))
+            changed = true
+        }
         if (intent.hasExtra("bubble_x") && intent.hasExtra("bubble_y")) {
-            editor.putInt(FloatingBubbleService.KEY_BUBBLE_X, intent.getIntExtra("bubble_x", 28))
-            editor.putInt(FloatingBubbleService.KEY_BUBBLE_Y, intent.getIntExtra("bubble_y", 150))
+            editor.putInt(FloatingBubbleService.KEY_BUBBLE_X, intent.getIntExtra("bubble_x", 16))
+            editor.putInt(FloatingBubbleService.KEY_BUBBLE_Y, intent.getIntExtra("bubble_y", 105))
             changed = true
         }
         if (changed) {
@@ -149,7 +167,7 @@ class MainActivity : AppCompatActivity() {
                 startService(svcIntent)
             }
             btnToggleBubble.postDelayed({ updatePermissionAndServiceStatus() }, 300L)
-        } else if (changed && FloatingBubbleService.isServiceRunning) {
+        } else if ((changed || intent.hasExtra("sim_index")) && FloatingBubbleService.isServiceRunning) {
             val svcIntent = Intent(this, FloatingBubbleService::class.java).apply {
                 action = FloatingBubbleService.ACTION_RELOAD_SETTINGS
                 putExtras(intent)
@@ -171,6 +189,12 @@ class MainActivity : AppCompatActivity() {
         tvLiveZoneName = findViewById(R.id.tvLiveZoneName)
         tvLiveUpcomingAlert = findViewById(R.id.tvLiveUpcomingAlert)
         tvLiveCoords = findViewById(R.id.tvLiveCoords)
+
+        sbBubbleScale = findViewById(R.id.sbBubbleScale)
+        tvBubbleScaleLabel = findViewById(R.id.tvBubbleScaleLabel)
+        sbIdleAlpha = findViewById(R.id.sbIdleAlpha)
+        tvIdleAlphaLabel = findViewById(R.id.tvIdleAlphaLabel)
+        swUltraMiniMode = findViewById(R.id.swUltraMiniMode)
 
         sbSimSpeedOverride = findViewById(R.id.sbSimSpeedOverride)
         tvSimSpeedOverrideLabel = findViewById(R.id.tvSimSpeedOverrideLabel)
@@ -209,6 +233,37 @@ class MainActivity : AppCompatActivity() {
                 startBubbleService()
                 btnToggleBubble.postDelayed({ updatePermissionAndServiceStatus() }, 250L)
             }
+        }
+
+        sbBubbleScale.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val scalePct = 70 + progress // 70%..130%
+                tvBubbleScaleLabel.text = "Kích thước Bong bóng: $scalePct% (Gọn gàng trên màn hình xe)"
+                if (fromUser) {
+                    prefs.edit().putInt(FloatingBubbleService.KEY_BUBBLE_SCALE, scalePct).apply()
+                    notifyServiceReloadSettings()
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        sbIdleAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val alphaPct = 50 + progress // 50%..100%
+                tvIdleAlphaLabel.text = "Độ rõ nét khi đường thông thoáng (Tự làm mờ): $alphaPct%"
+                if (fromUser) {
+                    prefs.edit().putInt(FloatingBubbleService.KEY_IDLE_ALPHA, alphaPct).apply()
+                    notifyServiceReloadSettings()
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        swUltraMiniMode.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(FloatingBubbleService.KEY_ULTRA_MINI, isChecked).apply()
+            notifyServiceReloadSettings()
         }
 
         rgLocationMode.setOnCheckedChangeListener { _, checkedId ->
@@ -260,7 +315,7 @@ class MainActivity : AppCompatActivity() {
                     action = FloatingBubbleService.ACTION_RESET_SIMULATION
                 }
                 startService(intent)
-                Toast.makeText(this, "Đã đưa xe về điểm xuất phát Chợ Bến Thành (0 km)!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Đã đưa xe về điểm xuất phát (0 km)!", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -268,6 +323,16 @@ class MainActivity : AppCompatActivity() {
     private fun syncUIFromPrefs() {
         val isSim = prefs.getBoolean(FloatingBubbleService.KEY_IS_SIMULATION, false)
         if (isSim) rbSimRoute.isChecked = true else rbRealGps.isChecked = true
+
+        val scalePct = prefs.getInt(FloatingBubbleService.KEY_BUBBLE_SCALE, 100).coerceIn(70, 130)
+        sbBubbleScale.progress = scalePct - 70
+        tvBubbleScaleLabel.text = "Kích thước Bong bóng: $scalePct% (Gọn gàng trên màn hình xe)"
+
+        val alphaPct = prefs.getInt(FloatingBubbleService.KEY_IDLE_ALPHA, 78).coerceIn(50, 100)
+        sbIdleAlpha.progress = alphaPct - 50
+        tvIdleAlphaLabel.text = "Độ rõ nét khi đường thông thoáng (Tự làm mờ): $alphaPct%"
+
+        swUltraMiniMode.isChecked = prefs.getBoolean(FloatingBubbleService.KEY_ULTRA_MINI, false)
 
         val simOverride = prefs.getInt(FloatingBubbleService.KEY_SIM_SPEED_OVERRIDE, 0)
         sbSimSpeedOverride.progress = simOverride
@@ -290,7 +355,7 @@ class MainActivity : AppCompatActivity() {
         }
         Toast.makeText(
             this,
-            "Đã bật Bong bóng tốc độ! Bạn có thể mở Google Maps hoặc YouTube ngay bây giờ.",
+            "Đã bật Bong bóng Siêu Gọn v2.0! Bạn có thể mở Google Maps ngay bây giờ.",
             Toast.LENGTH_LONG
         ).show()
     }
@@ -358,7 +423,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             btnGrantPermissions.visibility = android.view.View.GONE
             if (FloatingBubbleService.isServiceRunning) {
-                tvStatusBanner.text = "🟢 BONG BÓNG ĐANG HOẠT ĐỘNG • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
+                tvStatusBanner.text = "🟢 MINI HUD v2.0 ĐANG CHẠY • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
                 tvStatusBanner.setTextColor(0xFF34D399.toInt())
                 btnToggleBubble.text = "⏹ TẮT BONG BÓNG TỐC ĐỘ"
                 btnToggleBubble.setBackgroundColor(0xFFDC2626.toInt())

@@ -6,16 +6,16 @@
     android:background="@drawable/bg_bubble_pill"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="7dp"
-    android:paddingTop="6dp"
-    android:paddingEnd="10dp"
-    android:paddingBottom="6dp">
+    android:paddingStart="3dp"
+    android:paddingTop="3dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="3dp">
 
-    <!-- Cụm 1: Đồng hồ tốc độ thực tế GPS (km/h) -->
+    <!-- Cụm 1: Đồng hồ tốc độ thực tế GPS Siêu Gọn (44dp x 44dp) -->
     <LinearLayout
         android:id="@+id/speedCircleContainer"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
         android:background="@drawable/bg_speedometer_normal"
         android:gravity="center"
         android:orientation="vertical">
@@ -27,7 +27,7 @@
             android:includeFontPadding="false"
             android:text="0"
             android:textColor="#38BDF8"
-            android:textSize="24sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
@@ -37,19 +37,19 @@
             android:includeFontPadding="false"
             android:text="km/h"
             android:textColor="#94A3B8"
-            android:textSize="10sp" />
+            android:textSize="7.5sp" />
     </LinearLayout>
 
-    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại chuẩn Vietmap -->
+    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (42dp x 42dp, cắt tròn sát viền) -->
     <FrameLayout
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_marginStart="6dp">
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_marginStart="3dp">
 
         <ImageView
             android:id="@+id/ivSpeedLimitSign"
-            android:layout_width="58dp"
-            android:layout_height="58dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:layout_gravity="center"
             android:contentDescription="Biển báo tốc độ giới hạn"
             android:scaleType="fitCenter" />
@@ -59,37 +59,38 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center_horizontal"
-            android:background="#D90284C7"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
+            android:background="#CC0284C7"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
             android:text="SIM"
             android:textColor="#FFFFFF"
-            android:textSize="8sp"
+            android:textSize="6.5sp"
             android:textStyle="bold"
             android:visibility="gone" />
     </FrameLayout>
 
-    <!-- Cụm 3: Thẻ mở rộng hiển thị Biển báo / Camera phạt nguội sắp tới & khoảng cách (m) -->
+    <!-- Cụm 3: Nhãn Cảnh báo Thông minh (MẶC ĐỊNH ẨN - Chỉ hiện khi có Camera/Biển báo < 350m) -->
     <LinearLayout
         android:id="@+id/alertExpandPanel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="5dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingEnd="4dp">
+        android:paddingEnd="5dp"
+        android:visibility="gone">
 
         <ImageView
             android:id="@+id/ivUpcomingAlertIcon"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:contentDescription="Biển báo phía trước"
             android:scaleType="fitCenter" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="4dp"
             android:orientation="vertical">
 
             <TextView
@@ -97,9 +98,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:includeFontPadding="false"
-                android:text="60 km/h"
+                android:text="150m"
                 android:textColor="#FBBF24"
-                android:textSize="15sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -107,11 +108,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxWidth="145dp"
+                android:includeFontPadding="false"
+                android:maxWidth="82dp"
                 android:maxLines="1"
-                android:text="Đô thị tiêu chuẩn"
+                android:text="Camera"
                 android:textColor="#E2E8F0"
-                android:textSize="11sp" />
+                android:textSize="9sp" />
         </LinearLayout>
     </LinearLayout>
 

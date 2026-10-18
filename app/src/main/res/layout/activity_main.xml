@@ -9,15 +9,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="18dp">
+        android:padding="16dp">
 
         <!-- Header -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="VIETMAP CAR BUBBLE • OFFLINE HUD"
+            android:text="VIETMAP CAR BUBBLE v2.0 • MINI HUD OFFLINE"
             android:textColor="#38BDF8"
-            android:textSize="20sp"
+            android:textSize="19sp"
             android:textStyle="bold" />
 
         <TextView
@@ -34,8 +34,8 @@
         <Button
             android:id="@+id/btnGrantPermissions"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="50dp"
+            android:layout_marginTop="10dp"
             android:backgroundTint="#D97706"
             android:text="🔑 CẤP QUYỀN GPS &amp; VẼ BONG BÓNG NỔI TRÊN MÀN HÌNH XE"
             android:textColor="#FFFFFF"
@@ -46,19 +46,19 @@
         <Button
             android:id="@+id/btnToggleBubble"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
-            android:layout_marginTop="10dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="8dp"
             android:backgroundTint="#0284C7"
             android:text="🚀 BẬT BONG BÓNG TỐC ĐỘ NỔI"
             android:textColor="#FFFFFF"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <!-- Card 1: Telemetry Trực Tiếp -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:background="@drawable/bg_dashboard_card"
             android:orientation="vertical"
             android:padding="14dp">
@@ -74,7 +74,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -84,14 +84,14 @@
                     android:layout_height="wrap_content"
                     android:text="0 km/h"
                     android:textColor="#38BDF8"
-                    android:textSize="32sp"
+                    android:textSize="30sp"
                     android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/ivLiveLimitSign"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
-                    android:layout_marginStart="18dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_marginStart="16dp"
                     android:contentDescription="Biển báo giới hạn"
                     android:scaleType="fitCenter" />
 
@@ -115,7 +115,7 @@
                         android:id="@+id/tvLiveUpcomingAlert"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
+                        android:layout_marginTop="2dp"
                         android:text="Bật bong bóng để bắt đầu quét biển báo &amp; camera..."
                         android:textColor="#34D399"
                         android:textSize="13sp" />
@@ -126,17 +126,79 @@
                 android:id="@+id/tvLiveCoords"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:text="GPS: Chưa hoạt động • CSDL Offline: 69,965 điểm toàn quốc"
                 android:textColor="#64748B"
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!-- Card 2: Chọn Nguồn Tín Hiệu (GPS Thực Tế vs Mô Phỏng 30km TP.HCM) -->
+        <!-- Card 2: Tùy chỉnh Kích thước Siêu Gọn & Độ Trong Suốt Bong Bóng -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_dashboard_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✨ GIAO DIỆN BONG BÓNG SIÊU GỌN (TRÁNH CHE BẢN ĐỒ)"
+                android:textColor="#38BDF8"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvBubbleScaleLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Kích thước Bong bóng: 100% (Chuẩn gọn 92x48dp)"
+                android:textColor="#CBD5E1"
+                android:textSize="13sp" />
+
+            <SeekBar
+                android:id="@+id/sbBubbleScale"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:max="60"
+                android:progress="30" />
+
+            <TextView
+                android:id="@+id/tvIdleAlphaLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Độ rõ nét khi đường thông thoáng (Tự làm mờ): 78%"
+                android:textColor="#CBD5E1"
+                android:textSize="13sp" />
+
+            <SeekBar
+                android:id="@+id/sbIdleAlpha"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:max="50"
+                android:progress="28" />
+
+            <Switch
+                android:id="@+id/swUltraMiniMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:checked="false"
+                android:text="🔒 Chế độ Tối Giản Tuyệt Đối (Chỉ hiện 2 vòng tròn, không bung nhãn Camera ngang)"
+                android:textColor="#F1F5F9"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Card 3: Chọn Nguồn Tín Hiệu (GPS Thực Tế vs Mô Phỏng 30km TP.HCM) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:background="@drawable/bg_dashboard_card"
             android:orientation="vertical"
             android:padding="14dp">
@@ -153,7 +215,7 @@
                 android:id="@+id/rgLocationMode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:orientation="vertical">
 
                 <RadioButton
@@ -170,7 +232,7 @@
                     android:id="@+id/rbSimRoute"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="2dp"
                     android:buttonTint="#38BDF8"
                     android:text="Chạy Mô Phỏng Tuyến 30km TP.HCM (Chợ Bến Thành ➔ Suối Tiên để test tại chỗ)"
                     android:textColor="#F1F5F9"
@@ -181,7 +243,7 @@
                 android:id="@+id/tvSimSpeedOverrideLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:text="Tốc độ xe mô phỏng: Tự động theo tuyến đường"
                 android:textColor="#CBD5E1"
                 android:textSize="13sp" />
@@ -205,11 +267,11 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Card 3: Cài đặt Cảnh báo & Khởi động cùng xe -->
+        <!-- Card 4: Cài đặt Cảnh báo & Khởi động cùng xe -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:background="@drawable/bg_dashboard_card"
             android:orientation="vertical"
             android:padding="14dp">
@@ -226,7 +288,7 @@
                 android:id="@+id/tvOverspeedThresholdLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:text="Ngưỡng báo động vượt tốc độ: +3 km/h"
                 android:textColor="#CBD5E1"
                 android:textSize="13sp" />
@@ -243,7 +305,7 @@
                 android:id="@+id/swVoiceAlert"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:checked="true"
                 android:text="🔊 Phát giọng nói Tiếng Việt báo biển tốc độ &amp; camera phạt nguội"
                 android:textColor="#F1F5F9"
@@ -253,19 +315,11 @@
                 android:id="@+id/swAutoBoot"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:checked="true"
                 android:text="⚡ Tự động hiện Bong bóng khi nổ máy xe (Boot Completed)"
                 android:textColor="#F1F5F9"
                 android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="💡 Mẹo sử dụng trên màn hình xe: Bạn có thể kéo thả bong bóng tới bất kỳ góc nào trên Google Maps. Chạm nhẹ vào bong bóng để thu gọn/mở rộng, hoặc nhấn giữ 0.6 giây vào bong bóng để mở lại bảng điều khiển này."
-                android:textColor="#94A3B8"
-                android:textSize="12sp" />
         </LinearLayout>
 
     </LinearLayout>
