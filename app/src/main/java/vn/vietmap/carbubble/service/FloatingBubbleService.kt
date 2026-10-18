@@ -24,6 +24,7 @@ import vn.vietmap.carbubble.R
 import vn.vietmap.carbubble.audio.AudioAlertManager
 import vn.vietmap.carbubble.engine.EdogPoint
 import vn.vietmap.carbubble.engine.OfflineSpatialEngine
+import vn.vietmap.carbubble.engine.RawGpsFix
 import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
 import kotlin.math.*
 
@@ -137,13 +138,13 @@ class FloatingBubbleService : Service(), LocationListener {
     private val gpsWatchdogRunnable = object : Runnable {
         override fun run() {
             if (!isServiceRunning || isSimulationMode) return
-            val watchdogRes = speedCalculator.checkWatchdogTimeout(
-                nowElapsedNanos = SystemClock.elapsedRealtimeNanos(),
+            val newSpeed = speedCalculator.checkWatchdogTimeout(
+                nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos(),
                 gpsOffsetKmh = gpsOffsetKmh
             )
-            if (watchdogRes.speedSource == "WATCHDOG_TIMEOUT_0" && currentSpeedKmh != 0) {
+            if (newSpeed == 0 && currentSpeedKmh != 0) {
                 currentSpeedKmh = 0
-                lastSpeedSource = watchdogRes.speedSource
+                lastSpeedSource = "WATCHDOG_TIMEOUT_0"
                 Log.i(TELEMETRY_TAG, "GPS_WATCHDOG_ZERO: Không có nhịp GPS mới sau 3.2s -> Trả vận tốc về 0 km/h")
                 processSpatialQueryAndUpdateUI()
             }
@@ -508,10 +509,12 @@ class FloatingBubbleService : Service(), LocationListener {
             0f
         }
 
-        val rawFix = VietmapSpeedCalculator.RawGpsFix(
+        val rawFix = RawGpsFix(
+            lat = location.latitude,
+            lon = location.longitude,
+            timeMs = if (location.time > 0L) location.time else System.currentTimeMillis(),
+            elapsedRealtimeNanos = elapsedNanos,
             provider = location.provider ?: LocationManager.GPS_PROVIDER,
-            latitude = location.latitude,
-            longitude = location.longitude,
             hasAccuracy = location.hasAccuracy(),
             accuracyMeters = if (location.hasAccuracy()) location.accuracy else 12f,
             hasSpeed = location.hasSpeed(),
@@ -519,9 +522,7 @@ class FloatingBubbleService : Service(), LocationListener {
             hasSpeedAccuracy = hasSpeedAcc,
             speedAccuracyMetersPerSecond = speedAccMs,
             hasBearing = location.hasBearing(),
-            bearingDegrees = if (location.hasBearing()) location.bearing else 0f,
-            timeMillis = if (location.time > 0L) location.time else System.currentTimeMillis(),
-            elapsedRealtimeNanos = elapsedNanos
+            bearingDegrees = if (location.hasBearing()) location.bearing else 0f
         )
 
         applyRawGpsFixWithVietmapEngine(rawFix)
@@ -546,10 +547,12 @@ class FloatingBubbleService : Service(), LocationListener {
         val bearingDeg = intent.getFloatExtra("bearing_deg", currentBearing)
         val provider = intent.getStringExtra("provider") ?: LocationManager.GPS_PROVIDER
 
-        val rawFix = VietmapSpeedCalculator.RawGpsFix(
+        val rawFix = RawGpsFix(
+            lat = lat,
+            lon = lon,
+            timeMs = System.currentTimeMillis(),
+            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos(),
             provider = provider,
-            latitude = lat,
-            longitude = lon,
             hasAccuracy = true,
             accuracyMeters = accM,
             hasSpeed = hasSpeed,
@@ -557,28 +560,26 @@ class FloatingBubbleService : Service(), LocationListener {
             hasSpeedAccuracy = hasSpeed,
             speedAccuracyMetersPerSecond = 0.4f,
             hasBearing = hasBearing,
-            bearingDegrees = bearingDeg,
-            timeMillis = System.currentTimeMillis(),
-            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            bearingDegrees = bearingDeg
         )
         applyRawGpsFixWithVietmapEngine(rawFix)
     }
 
-    private fun applyRawGpsFixWithVietmapEngine(rawFix: VietmapSpeedCalculator.RawGpsFix) {
+    private fun applyRawGpsFixWithVietmapEngine(rawFix: RawGpsFix) {
         val calcResult = speedCalculator.processGpsFix(rawFix, gpsOffsetKmh)
-        if (!calcResult.isAcceptedFix) {
+        if (!calcResult.isAccepted) {
             Log.w(
                 TELEMETRY_TAG,
-                "GPS_FIX_REJECTED: provider=${rawFix.provider} acc=${rawFix.accuracyMeters}m reason=${calcResult.speedSource}"
+                "GPS_FIX_REJECTED: provider=${rawFix.provider} acc=${rawFix.accuracyMeters}m reason=${calcResult.sourceType}"
             )
             return
         }
 
-        currentLat = rawFix.latitude
-        currentLon = rawFix.longitude
-        currentSpeedKmh = calcResult.displaySpeedKmh
-        currentBearing = calcResult.bearingDegrees
-        lastSpeedSource = calcResult.speedSource
+        currentLat = rawFix.lat
+        currentLon = rawFix.lon
+        currentSpeedKmh = calcResult.speedKmh
+        currentBearing = calcResult.bearingDeg
+        lastSpeedSource = calcResult.sourceType
 
         processSpatialQueryAndUpdateUI()
     }

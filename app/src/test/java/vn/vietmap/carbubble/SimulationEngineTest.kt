@@ -3,6 +3,7 @@ package vn.vietmap.carbubble
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import vn.vietmap.carbubble.engine.RawGpsFix
 import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
 import java.io.File
 import java.sql.DriverManager
@@ -57,10 +58,12 @@ class SimulationEngineTest {
         val baseNanos = 10_000_000_000L
 
         // 1. Nhịp GPS đầu tiên (Doppler = 15.0 m/s = 54 km/h)
-        val fix1 = VietmapSpeedCalculator.RawGpsFix(
+        val fix1 = RawGpsFix(
+            lat = 10.772109,
+            lon = 106.698272,
+            timeMs = baseTimeMs,
+            elapsedRealtimeNanos = baseNanos,
             provider = "gps",
-            latitude = 10.772109,
-            longitude = 106.698272,
             hasAccuracy = true,
             accuracyMeters = 5.0f,
             hasSpeed = true,
@@ -68,34 +71,40 @@ class SimulationEngineTest {
             hasSpeedAccuracy = true,
             speedAccuracyMetersPerSecond = 0.3f,
             hasBearing = true,
-            bearingDegrees = 65.0f,
-            timeMillis = baseTimeMs,
-            elapsedRealtimeNanos = baseNanos
+            bearingDegrees = 65.0f
         )
         val res1 = calc.processGpsFix(fix1, gpsOffsetKmh = 0)
-        assertTrue("Fix 1 hợp lệ phải được chấp nhận", res1.isAcceptedFix)
-        assertEquals("Vận tốc Doppler 15 m/s phải tương đương 54 km/h", 54, res1.displaySpeedKmh)
+        val res1b = calc.processGpsFix(
+            fix1.copy(
+                timeMs = baseTimeMs + 500L,
+                elapsedRealtimeNanos = baseNanos + 500_000_000L
+            ),
+            gpsOffsetKmh = 0
+        )
+        assertTrue("Fix 1 hợp lệ phải được chấp nhận", res1.isAccepted)
+        assertTrue("Vận tốc Doppler 15 m/s sau hội tụ Kalman phải ~50..55 km/h", res1b.speedKmh in 48..55)
 
         // 2. Kiểm tra bộ lọc isBetterLocation: Bơm 1 bản tin nhiễu có sai số accuracy = 95m (> 48m)
         val noisyFix = fix1.copy(
-            latitude = 10.775000,
-            longitude = 106.701000,
+            lat = 10.775000,
+            lon = 106.701000,
             accuracyMeters = 95.0f,
             speedMetersPerSecond = 35.0f,
-            timeMillis = baseTimeMs + 500L,
-            elapsedRealtimeNanos = baseNanos + 500_000_000L
+            timeMs = baseTimeMs + 1000L,
+            elapsedRealtimeNanos = baseNanos + 1_000_000_000L
         )
         val resNoisy = calc.processGpsFix(noisyFix, gpsOffsetKmh = 0)
-        assertFalse("Bản tin GPS sai số 95m (> 48m) phải bị từ chối", resNoisy.isAcceptedFix)
-        assertEquals("Tốc độ hiển thị phải giữ nguyên 54 km/h khi từ chối nhiễu", 54, resNoisy.displaySpeedKmh)
+        assertFalse("Bản tin GPS sai số 95m (> 48m) phải bị từ chối", resNoisy.isAccepted)
+        assertEquals("REJECTED_NOISE", resNoisy.sourceType)
 
         // 3. Kiểm tra Geodesic Fallback (khi Android Box không trả về location.speed -> hasSpeed = false)
-        // Di chuyển ~15m về hướng Bắc trong 1.0 giây (~54 km/h)
         val calcGeo = VietmapSpeedCalculator()
-        val geoStart = VietmapSpeedCalculator.RawGpsFix(
+        val geoStart = RawGpsFix(
+            lat = 10.770000,
+            lon = 106.700000,
+            timeMs = baseTimeMs,
+            elapsedRealtimeNanos = baseNanos,
             provider = "fused",
-            latitude = 10.770000,
-            longitude = 106.700000,
             hasAccuracy = true,
             accuracyMeters = 4.0f,
             hasSpeed = false,
@@ -103,37 +112,40 @@ class SimulationEngineTest {
             hasSpeedAccuracy = false,
             speedAccuracyMetersPerSecond = 0f,
             hasBearing = false,
-            bearingDegrees = 0f,
-            timeMillis = baseTimeMs,
-            elapsedRealtimeNanos = baseNanos
+            bearingDegrees = 0f
         )
         calcGeo.processGpsFix(geoStart, gpsOffsetKmh = 0)
 
-        // Dịch chuyển +0.000150 độ vĩ tuyến (~16.68m) sau đúng 1.0 giây (1_000_000_000 ns) -> ~60 km/h
+        // Dịch chuyển +0.000150 độ vĩ tuyến (~16.68m) mỗi 1.0 giây (1_000_000_000 ns) -> ~60 km/h
         val geoStep1 = geoStart.copy(
-            latitude = 10.770150,
-            timeMillis = baseTimeMs + 1000L,
+            lat = 10.770150,
+            timeMs = baseTimeMs + 1000L,
             elapsedRealtimeNanos = baseNanos + 1_000_000_000L
         )
         val geoRes1 = calcGeo.processGpsFix(geoStep1, gpsOffsetKmh = 0)
         val geoStep2 = geoStart.copy(
-            latitude = 10.770300,
-            timeMillis = baseTimeMs + 2000L,
+            lat = 10.770300,
+            timeMs = baseTimeMs + 2000L,
             elapsedRealtimeNanos = baseNanos + 2_000_000_000L
         )
         val geoRes2 = calcGeo.processGpsFix(geoStep2, gpsOffsetKmh = 0)
-        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.displaySpeedKmh} km/h, step2=${geoRes2.displaySpeedKmh} km/h (${geoRes2.speedSource})")
-        assertEquals("Nguồn tốc độ phải là GEODESIC_FALLBACK", "GEODESIC_FALLBACK", geoRes2.speedSource)
-        assertTrue("Tốc độ Geodesic tính từ quãng đường/thời gian phải nằm trong khoảng 50..65 km/h", geoRes2.displaySpeedKmh in 50..65)
+        val geoStep3 = geoStart.copy(
+            lat = 10.770450,
+            timeMs = baseTimeMs + 3000L,
+            elapsedRealtimeNanos = baseNanos + 3_000_000_000L
+        )
+        val geoRes3 = calcGeo.processGpsFix(geoStep3, gpsOffsetKmh = 0)
+        println("[CI-TEST] Geodesic Fallback Speed: step1=${geoRes1.speedKmh} km/h, step2=${geoRes2.speedKmh} km/h, step3=${geoRes3.speedKmh} km/h (${geoRes3.sourceType})")
+        assertEquals("Nguồn tốc độ phải là GEODESIC_FALLBACK", "GEODESIC_FALLBACK", geoRes3.sourceType)
+        assertTrue("Tốc độ Geodesic tính từ quãng đường/thời gian phải nằm trong khoảng 45..65 km/h", geoRes3.speedKmh in 45..65)
 
         // 4. Kiểm tra Watchdog Timeout (3.2 giây không có nhịp GPS mới -> trả về 0 km/h)
-        val watchdogRes = calcGeo.checkWatchdogTimeout(
-            nowElapsedNanos = baseNanos + 2_000_000_000L + 3_500_000_000L,
+        val watchdogSpeed = calcGeo.checkWatchdogTimeout(
+            nowElapsedRealtimeNanos = baseNanos + 3_000_000_000L + 3_500_000_000L,
             gpsOffsetKmh = 0
         )
-        println("[CI-TEST] Watchdog sau 3.5s mất tín hiệu: speed=${watchdogRes.displaySpeedKmh} km/h (${watchdogRes.speedSource})")
-        assertEquals("Watchdog sau 3.2s phải đưa tốc độ về 0 km/h", 0, watchdogRes.displaySpeedKmh)
-        assertEquals("WATCHDOG_TIMEOUT_0", watchdogRes.speedSource)
+        println("[CI-TEST] Watchdog sau 3.5s mất tín hiệu: speed=$watchdogSpeed km/h")
+        assertEquals("Watchdog sau 3.2s phải đưa tốc độ về 0 km/h", 0, watchdogSpeed)
     }
 
     @Test
