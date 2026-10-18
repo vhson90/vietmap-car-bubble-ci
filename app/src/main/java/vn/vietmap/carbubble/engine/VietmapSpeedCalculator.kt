@@ -55,12 +55,14 @@ class VietmapSpeedCalculator {
     private var filteredSpeedMs: Double = 0.0
     private var kalmanErrorCov: Double = 1.0
     private var lastValidBearing: Float = 0.0f
+    private var hasMovingFix: Boolean = false
 
     fun reset() {
         currentBestFix = null
         lastValidSpeedFix = null
         filteredSpeedMs = 0.0
         kalmanErrorCov = 1.0
+        hasMovingFix = false
     }
 
     /**
@@ -136,34 +138,42 @@ class VietmapSpeedCalculator {
             }
         }
 
-        // Bước 4: Khử gai gia tốc vật lý (Physical Acceleration Limiter)
-        if (prevFix != null && dtSec in 0.05..10.0) {
-            val maxDeltaV = MAX_PHYSICAL_ACCEL_MS2 * dtSec
-            val deltaV = candidateSpeedMs - filteredSpeedMs
-            if (deltaV > maxDeltaV) {
-                // Chặn gai nhảy vọt tốc độ ảo (GPS spike)
-                candidateSpeedMs = filteredSpeedMs + maxDeltaV * 0.5
-            }
-        }
-
-        // Bước 5: Bộ lọc Kalman 1D kết hợp làm mượt nhạy chiều giảm tốc
+        // Bước 4 & 5: Khử gai gia tốc vật lý + Bộ lọc Kalman 1D
         if (candidateSpeedMs <= 0.65) {
             // Khi xe dừng hoặc gần dừng (< 2.34 km/h), hạ nhanh về 0
             filteredSpeedMs = if (filteredSpeedMs < 1.2) 0.0 else filteredSpeedMs * 0.35
+            if (filteredSpeedMs == 0.0) {
+                hasMovingFix = false
+            }
+        } else if (!hasMovingFix) {
+            // Nhịp di chuyển hợp lệ đầu tiên (khi vừa bật App lúc xe đang chạy hoặc vừa ra khỏi hầm):
+            // Khởi tạo trực tiếp để đồng hồ bắt kịp vận tốc thực ngay lập tức mà không bị trễ
+            filteredSpeedMs = candidateSpeedMs
+            kalmanErrorCov = 1.0
+            hasMovingFix = true
         } else {
+            if (prevFix != null && dtSec in 0.05..10.0) {
+                val maxDeltaV = MAX_PHYSICAL_ACCEL_MS2 * dtSec
+                val deltaV = candidateSpeedMs - filteredSpeedMs
+                if (deltaV > maxDeltaV) {
+                    // Chặn gai nhảy vọt tốc độ ảo (GPS spike)
+                    candidateSpeedMs = filteredSpeedMs + maxDeltaV
+                }
+            }
+
             val processNoiseQ = 0.45
             val measurementNoiseR = if (fix.hasSpeedAccuracy && fix.speedAccuracyMetersPerSecond > 0f) {
                 (fix.speedAccuracyMetersPerSecond.toDouble()).pow(2.0).coerceIn(0.2, 6.0)
             } else if (sourceType == "DOPPLER") {
                 0.55
             } else {
-                1.35
+                1.10
             }
 
             val predCov = kalmanErrorCov + processNoiseQ
             val kalmanGain = predCov / (predCov + measurementNoiseR)
             // Tăng độ nhạy khi xe đang giảm tốc (phanh)
-            val effectiveGain = if (candidateSpeedMs < filteredSpeedMs) max(kalmanGain, 0.78) else max(kalmanGain, 0.62)
+            val effectiveGain = if (candidateSpeedMs < filteredSpeedMs) max(kalmanGain, 0.78) else max(kalmanGain, 0.68)
             filteredSpeedMs += effectiveGain * (candidateSpeedMs - filteredSpeedMs)
             kalmanErrorCov = (1.0 - effectiveGain) * predCov
         }
@@ -190,6 +200,7 @@ class VietmapSpeedCalculator {
             val elapsedNanos = nowElapsedRealtimeNanos - lastFix.elapsedRealtimeNanos
             if (elapsedNanos >= WATCHDOG_TIMEOUT_NANOS) {
                 filteredSpeedMs = 0.0
+                hasMovingFix = false
                 return 0
             }
         }
