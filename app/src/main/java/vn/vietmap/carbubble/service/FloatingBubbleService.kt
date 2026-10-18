@@ -538,8 +538,19 @@ class FloatingBubbleService : Service(), LocationListener {
             prefs.edit().putBoolean(KEY_IS_SIMULATION, false).apply()
             applyLocationMode()
         }
-        val lat = intent.getDoubleExtra("lat", currentLat)
-        val lon = intent.getDoubleExtra("lon", currentLon)
+        // Tạm ngắt nguồn GPS mặc định của máy ảo (vốn phát tọa độ cố định 2.03333, 105.85000) để không ghi đè tọa độ test
+        try {
+            locationManager?.removeUpdates(this)
+        } catch (_: Exception) {
+        }
+        if (intent.getBooleanExtra("reset_calc", false)) {
+            speedCalculator.reset()
+        }
+
+        val lat = intent.getStringExtra("lat_s")?.toDoubleOrNull()
+            ?: if (intent.hasExtra("lat")) intent.getFloatExtra("lat", currentLat.toFloat()).toDouble() else currentLat
+        val lon = intent.getStringExtra("lon_s")?.toDoubleOrNull()
+            ?: if (intent.hasExtra("lon")) intent.getFloatExtra("lon", currentLon.toFloat()).toDouble() else currentLon
         val hasSpeed = intent.getBooleanExtra("has_speed", true)
         val speedMs = intent.getFloatExtra("speed_ms", 0f)
         val accM = intent.getFloatExtra("acc_m", 6.0f)

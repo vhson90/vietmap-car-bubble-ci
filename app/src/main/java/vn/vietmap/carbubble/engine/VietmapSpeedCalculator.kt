@@ -222,29 +222,37 @@ class VietmapSpeedCalculator {
         val timeDelta = location.timeMs - currentBestLocation.timeMs
         val isSignificantlyNewer = timeDelta > TWO_MINUTES_MS
         val isSignificantlyOlder = timeDelta < -TWO_MINUTES_MS
-        val isNewer = timeDelta > 0L
+        val isNewer = timeDelta >= 0L
 
         if (isSignificantlyNewer) return true
         if (isSignificantlyOlder) return false
+
+        // Nếu bản tin trước từ GPS/Fused chính xác cao mà bản tin mới từ Network kém chính xác -> Loại bỏ
+        val prevIsSatellite = currentBestLocation.provider.equals("gps", ignoreCase = true) ||
+                currentBestLocation.provider.equals("fused", ignoreCase = true)
+        val currIsSatellite = location.provider.equals("gps", ignoreCase = true) ||
+                location.provider.equals("fused", ignoreCase = true)
+
+        if (prevIsSatellite && location.provider.equals("network", ignoreCase = true) && timeDelta < 5_000L) {
+            return false
+        }
+
+        // Nếu bản tin mới đến từ vệ tinh (GPS/Fused) và có độ chính xác tốt (<= 25m) -> Luôn chấp nhận
+        if (isNewer && currIsSatellite && (!location.hasAccuracy || location.accuracyMeters <= 25.0f)) {
+            return true
+        }
 
         val accuracyDelta = (location.accuracyMeters - currentBestLocation.accuracyMeters).toInt()
         val isLessAccurate = accuracyDelta > 0
         val isMoreAccurate = accuracyDelta < 0
         val isSignificantlyLessAccurate = accuracyDelta > 30
 
-        val isSameProvider = location.provider.equals(currentBestLocation.provider, ignoreCase = true)
-
-        // Nếu bản tin trước từ GPS/Fused chính xác cao mà bản tin mới từ Network kém chính xác -> Loại bỏ
-        if (currentBestLocation.provider.equals("gps", ignoreCase = true) &&
-            location.provider.equals("network", ignoreCase = true) &&
-            timeDelta < 5_000L
-        ) {
-            return false
-        }
+        val isSameOrCompatibleProvider = (prevIsSatellite && currIsSatellite) ||
+                location.provider.equals(currentBestLocation.provider, ignoreCase = true)
 
         if (isMoreAccurate) return true
         if (isNewer && !isLessAccurate) return true
-        if (isNewer && !isSignificantlyLessAccurate && isSameProvider) return true
+        if (isNewer && !isSignificantlyLessAccurate && isSameOrCompatibleProvider) return true
 
         return false
     }
