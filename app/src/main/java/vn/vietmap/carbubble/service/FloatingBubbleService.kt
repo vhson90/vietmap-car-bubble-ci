@@ -565,7 +565,7 @@ class FloatingBubbleService : Service(), LocationListener {
         try {
             val jsonText = assets.open("sample_route_30km.json").bufferedReader().use { it.readText() }
             val root = JSONObject(jsonText)
-            val coords = root.getJSONArray("coordinates")
+            val coords = root.optJSONArray("points") ?: root.getJSONArray("coordinates")
             simRoutePoints.clear()
             for (i in 0 until coords.length()) {
                 val pair = coords.getJSONArray(i)

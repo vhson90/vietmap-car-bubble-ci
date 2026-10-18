@@ -53,7 +53,7 @@ class SimulationEngineTest {
         assertTrue(routeFile.exists())
 
         val routeJson = JSONObject(routeFile.readText(Charsets.UTF_8))
-        val coords = routeJson.getJSONArray("coordinates")
+        val coords = routeJson.optJSONArray("points") ?: routeJson.getJSONArray("coordinates")
         assertTrue("Tuyến đường 30km phải có trên 500 tọa độ", coords.length() > 500)
 
         Class.forName("org.sqlite.JDBC")
