@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="vn.vietmap.carbubble">
+    package="vn.velohud.auto">
 
     <!-- Quyền vẽ Bong bóng nổi đè lên trên Google Maps, YouTube, CarPlay -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -10,11 +10,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
-    <!-- Quyền chạy ngầm Foreground Service liên tục trên Android Box -->
+    <!-- Quyền chạy ngầm Foreground Service & Khóa phần cứng chống ngủ đông GPS trên Android Box -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- Quyền bỏ qua tối ưu hóa pin để Android 12-15 cho phép tự chạy ngầm khi nổ máy xe -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -28,7 +29,7 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_bubble"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VietmapCarBubble">
+        android:theme="@style/Theme.VeloHUD">
 
         <!-- Màn hình Dashboard điều khiển trên màn hình xe -->
         <activity

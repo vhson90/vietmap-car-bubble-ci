@@ -1,5 +1,6 @@
-package vn.vietmap.carbubble.service
+package vn.velohud.auto.service
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
@@ -9,11 +10,13 @@ import android.graphics.*
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.wifi.WifiManager
 import android.os.*
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -21,43 +24,41 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
-import vn.vietmap.carbubble.MainActivity
-import vn.vietmap.carbubble.R
-import vn.vietmap.carbubble.audio.AudioAlertManager
-import vn.vietmap.carbubble.engine.EdogPoint
-import vn.vietmap.carbubble.engine.OfflineSpatialEngine
-import vn.vietmap.carbubble.engine.RawGpsFix
-import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
+import vn.velohud.auto.MainActivity
+import vn.velohud.auto.R
+import vn.velohud.auto.audio.AudioAlertManager
+import vn.velohud.auto.engine.EdogPoint
+import vn.velohud.auto.engine.GpsSpeedCalculator
+import vn.velohud.auto.engine.OfflineSpatialEngine
+import vn.velohud.auto.engine.RawGpsFix
 import kotlin.math.*
 
 /**
- * Dịch vụ chạy ngầm (Foreground Service) hiển thị Bong Bóng Tốc Độ Siêu Gọn (v2.2 Mini HUD)
+ * Dịch vụ chạy ngầm (Foreground Service) hiển thị Bong Bóng Tốc Độ Siêu Gọn (VeloHUD v3.0)
  * đè lên trên mọi ứng dụng (Google Maps, YouTube, Navitel, Apple CarPlay...) trên Android Box ô tô.
  *
- * Cải tiến v2.2:
- * - Sửa triệt để lỗi cắt viền khi phóng to/thu nhỏ bong bóng: Co giãn trực tiếp kích thước thật (`LayoutParams` & `sp`)
- *   của toàn bộ thành phần bên trong thay vì dùng `scaleX/scaleY`, giúp viền ngoài `bg_bubble_pill` và cửa sổ `WindowManager`
- *   co giãn đồng bộ 100% ở mọi mức tỷ lệ (70%..130%).
- * - Chống đứng hình biển báo/camera sau thời gian dài di chuyển:
- *   + Luôn cập nhật tọa độ truy vấn biển báo ngay cả khi tín hiệu GPS yếu (tách biệt khỏi bộ lọc nhiễu vận tốc).
- *   + Cơ chế `Auto-Heal Location Watchdog`: Tự động làm mới kết nối `LocationManager` nếu quá 8.5s không có callback.
- * - Phối hợp cùng `OfflineSpatialEngine` v2.2 (khoảng cách chiếu dọc trục đường `alongTrackMeters` + xóa ngay biển đã đi qua)
- *   và `AudioAlertManager` v2.2 (mỗi biển/camera chỉ đọc đúng 1 lần duy nhất).
+ * Nâng cấp chuẩn thương mại VeloHUD v3.0:
+ * 1. Khóa phần cứng chống ngủ đông (`PARTIAL_WAKE_LOCK` + `WIFI_LOCK` + `PASSIVE_PROVIDER`):
+ *    Giữ CPU & GNSS trong Foreground Service luôn hoạt động 100% thời gian thực khi chạy nền lâu.
+ * 2. Co giãn LayoutParams thật + `miniModeSignScale` + Hiệu ứng hít mép màn hình mượt mà (`ValueAnimator` Edge-Snap).
+ * 3. Khoảng cách quét biển báo biến thiên theo tốc độ (`warningAlertDistance`: 240m / 330m / 450m) + `cleanWhenOut()`.
+ * 4. Phát giọng nói Tiếng Việt thu âm phòng thu (`assets/sounds/*.mp3`) kèm khóa `markRead` 1 lần duy nhất.
  */
 class FloatingBubbleService : Service(), LocationListener {
 
     companion object {
         private const val TAG = "FloatingBubbleService"
-        private const val TELEMETRY_TAG = "VietmapTelemetry"
+        private const val TELEMETRY_TAG = "VeloHudTelemetry"
         private const val NOTIFICATION_ID = 2026
-        private const val CHANNEL_ID = "vietmap_car_bubble_channel"
+        private const val CHANNEL_ID = "velohud_bubble_channel"
 
-        const val PREFS_NAME = "vietmap_car_bubble_prefs"
+        const val PREFS_NAME = "velohud_prefs"
         const val KEY_IS_SIMULATION = "is_simulation_mode"
         const val KEY_SIM_SPEED_OVERRIDE = "sim_speed_override_kmh"
         const val KEY_GPS_OFFSET_KMH = "gps_offset_kmh"
         const val KEY_OVERSPEED_THRESHOLD = "overspeed_threshold_kmh"
         const val KEY_VOICE_ENABLED = "voice_enabled"
+        const val KEY_SOUND_MODE = "sound_mode_type"          // 0 = Giọng nói + Ting, 1 = Chỉ Ting, 2 = Tắt âm
         const val KEY_AUTO_START_BOOT = "auto_start_boot"
         const val KEY_AUTO_START_ON_OPEN = "auto_start_on_open"
         const val KEY_AUTO_MINIMIZE_ON_START = "auto_minimize_on_start"
@@ -67,13 +68,13 @@ class FloatingBubbleService : Service(), LocationListener {
         const val KEY_IDLE_ALPHA = "bubble_idle_alpha_pct"    // 50..100 (Mặc định 78%)
         const val KEY_ULTRA_MINI = "bubble_ultra_mini_mode"   // true = Chỉ hiện 2 vòng tròn cố định
 
-        const val ACTION_START_BUBBLE = "vn.vietmap.carbubble.ACTION_START_BUBBLE"
-        const val ACTION_STOP_BUBBLE = "vn.vietmap.carbubble.ACTION_STOP_BUBBLE"
-        const val ACTION_RELOAD_SETTINGS = "vn.vietmap.carbubble.ACTION_RELOAD_SETTINGS"
-        const val ACTION_RESET_SIMULATION = "vn.vietmap.carbubble.ACTION_RESET_SIMULATION"
-        const val ACTION_DEBUG_INJECT_GPS = "vn.vietmap.carbubble.ACTION_DEBUG_INJECT_GPS"
+        const val ACTION_START_BUBBLE = "vn.velohud.auto.ACTION_START_BUBBLE"
+        const val ACTION_STOP_BUBBLE = "vn.velohud.auto.ACTION_STOP_BUBBLE"
+        const val ACTION_RELOAD_SETTINGS = "vn.velohud.auto.ACTION_RELOAD_SETTINGS"
+        const val ACTION_RESET_SIMULATION = "vn.velohud.auto.ACTION_RESET_SIMULATION"
+        const val ACTION_DEBUG_INJECT_GPS = "vn.velohud.auto.ACTION_DEBUG_INJECT_GPS"
 
-        const val ACTION_STATE_BROADCAST = "vn.vietmap.carbubble.ACTION_STATE_BROADCAST"
+        const val ACTION_STATE_BROADCAST = "vn.velohud.auto.ACTION_STATE_BROADCAST"
 
         @Volatile
         var isServiceRunning: Boolean = false
@@ -84,8 +85,12 @@ class FloatingBubbleService : Service(), LocationListener {
     private lateinit var windowManager: WindowManager
     private lateinit var spatialEngine: OfflineSpatialEngine
     private lateinit var audioManager: AudioAlertManager
-    private val speedCalculator = VietmapSpeedCalculator()
+    private val speedCalculator = GpsSpeedCalculator()
     private var locationManager: LocationManager? = null
+
+    // Khóa phần cứng giữ CPU & GNSS không bao giờ bị đóng băng khi chạy nền trên Android Car Box
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     private var bubbleView: View? = null
     private lateinit var layoutParams: WindowManager.LayoutParams
@@ -114,6 +119,7 @@ class FloatingBubbleService : Service(), LocationListener {
     private var overspeedThresholdKmh: Int = 3
     private var bubbleScalePercent: Int = 100
     private var lastAppliedScalePercent: Int = -1
+    private var lastAppliedAlertExpanded: Boolean = false
     private var idleAlphaPercent: Int = 78
     private var isUltraMiniMode: Boolean = false
 
@@ -175,19 +181,76 @@ class FloatingBubbleService : Service(), LocationListener {
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
+        acquireHardwareLocks()
+
         spatialEngine = OfflineSpatialEngine(this)
         val dbOk = spatialEngine.initializeDatabase()
-        Log.i(TELEMETRY_TAG, "INIT_SERVICE_V2_2: db_initialized=$dbOk")
+        Log.i(TELEMETRY_TAG, "INIT_SERVICE_V3_0: brand=VeloHUD db_initialized=$dbOk")
 
         audioManager = AudioAlertManager(this)
 
         loadSettings()
         loadSample30KmRoute()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildForegroundNotification("Mini HUD v2.2 đang hoạt động"))
+        startForeground(NOTIFICATION_ID, buildForegroundNotification("VeloHUD v3.0 đang hoạt động"))
 
         createFloatingBubbleWindow()
         applyLocationMode()
+    }
+
+    /**
+     * Cấp phát PARTIAL_WAKE_LOCK & WIFI_LOCK giống LocationEngineService của app thương mại
+     * để ngăn hệ điều hành Android Box ô tô đóng băng tiến trình GPS khi chạy nền lâu.
+     */
+    @SuppressLint("WakelockTimeout")
+    private fun acquireHardwareLocks() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (pm != null && wakeLock == null) {
+                wakeLock = pm.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "VeloHUD:LocationEngineWakeLock"
+                ).apply {
+                    setReferenceCounted(false)
+                    acquire()
+                }
+            }
+            val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            if (wm != null && wifiLock == null) {
+                val lockType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                }
+                wifiLock = wm.createWifiLock(lockType, "VeloHUD:LocationEngineWifiLock").apply {
+                    setReferenceCounted(false)
+                    acquire()
+                }
+            }
+            Log.i(TELEMETRY_TAG, "HARDWARE_LOCKS_ACQUIRED: wakeLock=${wakeLock?.isHeld == true} wifiLock=${wifiLock?.isHeld == true}")
+        } catch (e: Exception) {
+            Log.w(TAG, "Không thể cấp phát WakeLock/WifiLock: ${e.message}")
+        }
+    }
+
+    private fun releaseHardwareLocks() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {
+        } finally {
+            wakeLock = null
+        }
+        try {
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
+            }
+        } catch (_: Exception) {
+        } finally {
+            wifiLock = null
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -225,6 +288,10 @@ class FloatingBubbleService : Service(), LocationListener {
                 editor.putBoolean(KEY_ULTRA_MINI, intent.getBooleanExtra("ultra_mini", false))
                 hasOverrides = true
             }
+            if (intent.hasExtra("sound_mode")) {
+                editor.putInt(KEY_SOUND_MODE, intent.getIntExtra("sound_mode", AudioAlertManager.SOUND_MODE_FULL))
+                hasOverrides = true
+            }
             if (intent.hasExtra("bubble_x") && intent.hasExtra("bubble_y")) {
                 val bx = intent.getIntExtra("bubble_x", 16)
                 val by = intent.getIntExtra("bubble_y", 110)
@@ -258,7 +325,10 @@ class FloatingBubbleService : Service(), LocationListener {
             ACTION_RELOAD_SETTINGS, ACTION_START_BUBBLE -> {
                 val oldSimMode = isSimulationMode
                 loadSettings()
-                applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = false)
+                applyBubbleScaleAndAlpha(
+                    isActiveAlertOrOverspeed = false,
+                    isAlertExpanded = (alertExpandPanel?.visibility == View.VISIBLE)
+                )
                 if (oldSimMode != isSimulationMode) {
                     applyLocationMode()
                 } else {
@@ -284,6 +354,7 @@ class FloatingBubbleService : Service(), LocationListener {
         idleAlphaPercent = prefs.getInt(KEY_IDLE_ALPHA, 78).coerceIn(50, 100)
         isUltraMiniMode = prefs.getBoolean(KEY_ULTRA_MINI, false)
         audioManager.isVoiceEnabled = prefs.getBoolean(KEY_VOICE_ENABLED, true)
+        audioManager.soundMode = prefs.getInt(KEY_SOUND_MODE, AudioAlertManager.SOUND_MODE_FULL)
     }
 
     @SuppressLint("InflateParams", "ClickableViewAccessibility")
@@ -335,7 +406,7 @@ class FloatingBubbleService : Service(), LocationListener {
         }
 
         lastAppliedScalePercent = -1
-        applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = false)
+        applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = false, isAlertExpanded = false)
         setupTouchAndDragListener()
 
         try {
@@ -356,20 +427,20 @@ class FloatingBubbleService : Service(), LocationListener {
 
     /**
      * Phóng to / Thu nhỏ Bong bóng bằng cách cập nhật trực tiếp kích thước LayoutParams thật & cỡ chữ SP
-     * của toàn bộ thành phần bên trong, giúp khung viền ngoài (`bg_bubble_pill`) và cửa sổ `WindowManager`
-     * tự động co giãn chuẩn xác 100%, tuyệt đối không bị cắt góc (no clipping).
+     * kèm tỷ lệ `miniModeSignScale` khi bung/đóng khung cảnh báo (`alertExpandPanel`), giúp viền ngoài
+     * và cửa sổ `WindowManager` co giãn chuẩn xác 100%, không bao giờ bị cắt góc.
      */
-    private fun applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed: Boolean) {
+    private fun applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed: Boolean, isAlertExpanded: Boolean) {
         val scale = (bubbleScalePercent / 100f).coerceIn(0.70f, 1.35f)
+        val miniSignFactor = if (isAlertExpanded) 0.96f else 1.0f
 
-        // Luôn giữ scaleX = 1f, scaleY = 1f để không vượt khỏi biên Surface của WindowManager
         rootBubbleContainer?.scaleX = 1.0f
         rootBubbleContainer?.scaleY = 1.0f
 
-        if (bubbleScalePercent != lastAppliedScalePercent) {
+        if (bubbleScalePercent != lastAppliedScalePercent || isAlertExpanded != lastAppliedAlertExpanded) {
             lastAppliedScalePercent = bubbleScalePercent
+            lastAppliedAlertExpanded = isAlertExpanded
 
-            // 1. Vẽ lại khung viền ngoài cùng (Pill Background) với bán kính bo tròn, độ dày viền và Padding tỷ lệ 100% theo scale
             val pillDrawable = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 setColor(0xCC0B1120.toInt())
@@ -384,7 +455,6 @@ class FloatingBubbleService : Service(), LocationListener {
                 dpToPx(4.5f * scale)
             )
 
-            // 2. Vòng tròn đồng hồ tốc độ hiện tại (Chuẩn 44dp * scale)
             speedCircleContainer?.layoutParams = (speedCircleContainer?.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 width = dpToPx(44f * scale)
                 height = dpToPx(44f * scale)
@@ -392,18 +462,17 @@ class FloatingBubbleService : Service(), LocationListener {
             tvCurrentSpeed?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f * scale)
             tvSpeedUnit?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 7.5f * scale)
 
-            // 3. Vòng tròn biển báo tốc độ giới hạn (Chuẩn 42dp * scale)
+            val signDp = 42f * scale * miniSignFactor
             signCircleContainer?.layoutParams = (signCircleContainer?.layoutParams as? LinearLayout.LayoutParams)?.apply {
-                width = dpToPx(42f * scale)
-                height = dpToPx(42f * scale)
+                width = dpToPx(signDp)
+                height = dpToPx(signDp)
                 marginStart = dpToPx(3f * scale)
             }
             ivSpeedLimitSign?.layoutParams = (ivSpeedLimitSign?.layoutParams as? FrameLayout.LayoutParams)?.apply {
-                width = dpToPx(42f * scale)
-                height = dpToPx(42f * scale)
+                width = dpToPx(signDp)
+                height = dpToPx(signDp)
             }
 
-            // 4. Cụm nhãn cảnh báo mở rộng bên phải (Icon 28dp * scale + Chữ khoảng cách/tên camera)
             alertExpandPanel?.layoutParams = (alertExpandPanel?.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 marginStart = dpToPx(5f * scale)
             }
@@ -479,17 +548,14 @@ class FloatingBubbleService : Service(), LocationListener {
                         val screenWidth = resources.displayMetrics.widthPixels
                         val bubbleWidth = bubbleView?.width ?: 200
                         val centerX = layoutParams.x + bubbleWidth / 2
-                        layoutParams.x = if (centerX < screenWidth / 2) {
+                        val targetX = if (centerX < screenWidth / 2) {
                             14
                         } else {
                             max(14, screenWidth - bubbleWidth - 14)
                         }
-                        try {
-                            windowManager.updateViewLayout(bubbleView, layoutParams)
-                        } catch (_: Exception) {
-                        }
+                        animateEdgeSnap(layoutParams.x, targetX)
                         prefs.edit()
-                            .putInt(KEY_BUBBLE_X, layoutParams.x)
+                            .putInt(KEY_BUBBLE_X, targetX)
                             .putInt(KEY_BUBBLE_Y, layoutParams.y)
                             .apply()
                     } else {
@@ -502,9 +568,9 @@ class FloatingBubbleService : Service(), LocationListener {
                             isUltraMiniMode = !isUltraMiniMode
                             prefs.edit().putBoolean(KEY_ULTRA_MINI, isUltraMiniMode).apply()
                             val msg = if (isUltraMiniMode) {
-                                "Chế độ Tối Giản: Chỉ hiện 2 vòng tròn"
+                                "VeloHUD: Chế độ Tối Giản (Chỉ hiện 2 vòng tròn)"
                             } else {
-                                "Chế độ Thông Minh: Tự bung nhãn khi có Camera < 350m"
+                                "VeloHUD: Chế độ Thông Minh (Tự bung nhãn Camera)"
                             }
                             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                             refreshBubbleUI()
@@ -513,6 +579,35 @@ class FloatingBubbleService : Service(), LocationListener {
                     true
                 }
                 else -> false
+            }
+        }
+    }
+
+    /**
+     * Hiệu ứng trượt mượt tự động hít sát mép màn hình (Edge Snap) sau khi người dùng kéo thả bong bóng
+     */
+    private fun animateEdgeSnap(fromX: Int, toX: Int) {
+        if (fromX == toX) return
+        try {
+            ValueAnimator.ofInt(fromX, toX).apply {
+                duration = 180L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { anim ->
+                    if (bubbleView != null && bubbleView?.isAttachedToWindow == true) {
+                        layoutParams.x = anim.animatedValue as Int
+                        try {
+                            windowManager.updateViewLayout(bubbleView, layoutParams)
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+                start()
+            }
+        } catch (_: Exception) {
+            layoutParams.x = toX
+            try {
+                windowManager.updateViewLayout(bubbleView, layoutParams)
+            } catch (_: Exception) {
             }
         }
     }
@@ -531,7 +626,7 @@ class FloatingBubbleService : Service(), LocationListener {
             spatialEngine.resetLatchedState(60)
             audioManager.resetHistory()
             mainHandler.post(simulationRunnable)
-            updateForegroundNotification("Mini HUD • [DEBUG] Giả lập 30km")
+            updateForegroundNotification("VeloHUD • [DEBUG] Giả lập 30km")
             Log.i(TELEMETRY_TAG, "MODE_SWITCH: DEBUG_SIMULATION_30KM_ACTIVE")
         } else {
             isDebugGpsInjected = false
@@ -547,13 +642,13 @@ class FloatingBubbleService : Service(), LocationListener {
             mainHandler.postDelayed(gpsWatchdogRunnable, 1000L)
             processSpatialQueryAndUpdateUI()
 
-            updateForegroundNotification("Mini HUD v2.2 • Đang thu tín hiệu GPS thực tế")
-            Log.i(TELEMETRY_TAG, "MODE_SWITCH: REAL_GPS_ACTIVE (VietmapSpeedCalculator v2.2)")
+            updateForegroundNotification("VeloHUD v3.0 • Đang thu tín hiệu GPS thực tế")
+            Log.i(TELEMETRY_TAG, "MODE_SWITCH: REAL_GPS_ACTIVE (GpsSpeedCalculator v3.0)")
         }
     }
 
     /**
-     * Đăng ký / Làm mới kết nối LocationManager (Auto-Heal) và lấy ngay vị trí gần nhất nếu có
+     * Đăng ký / Làm mới kết nối LocationManager (Auto-Heal) gồm cả `fused`, `gps`, `passive`, `network`
      */
     @SuppressLint("MissingPermission")
     private fun rebindAndPollLocationListeners() {
@@ -581,13 +676,20 @@ class FloatingBubbleService : Service(), LocationListener {
                 Log.i(TELEMETRY_TAG, "GPS_PROVIDER_REGISTERED: gps (minTime=500ms, minDist=0m)")
             }
 
+            // Nhận ké tọa độ thời gian thực từ Google Maps / Navitel đang mở trên màn hình xe qua PASSIVE_PROVIDER
+            if (allProviders.contains(LocationManager.PASSIVE_PROVIDER)) {
+                try {
+                    locationManager?.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 400L, 0.0f, this)
+                } catch (_: Exception) {
+                }
+            }
+
             if (allProviders.contains(LocationManager.NETWORK_PROVIDER) &&
                 locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
             ) {
                 locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000L, 0.0f, this)
             }
 
-            // Lấy ngay vị trí LastKnownLocation nếu thiết bị vừa có sẵn tọa độ mới
             val lastLoc = (if (allProviders.contains("fused")) locationManager?.getLastKnownLocation("fused") else null)
                 ?: (if (allProviders.contains(LocationManager.GPS_PROVIDER)) locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER) else null)
                 ?: (if (allProviders.contains(LocationManager.NETWORK_PROVIDER)) locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) else null)
@@ -634,7 +736,7 @@ class FloatingBubbleService : Service(), LocationListener {
             bearingDegrees = if (location.hasBearing()) location.bearing else 0f
         )
 
-        applyRawGpsFixWithVietmapEngine(rawFix)
+        applyRawGpsFixWithSpeedEngine(rawFix)
     }
 
     private fun handleDebugInjectedGpsFix(intent: Intent) {
@@ -658,7 +760,10 @@ class FloatingBubbleService : Service(), LocationListener {
         if (customScale in 70..135) {
             bubbleScalePercent = customScale
             prefs.edit().putInt(KEY_BUBBLE_SCALE, customScale).apply()
-            applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = true)
+            applyBubbleScaleAndAlpha(
+                isActiveAlertOrOverspeed = true,
+                isAlertExpanded = (alertExpandPanel?.visibility == View.VISIBLE)
+            )
         }
 
         val lat = intent.getStringExtra("lat_s")?.toDoubleOrNull()
@@ -687,18 +792,16 @@ class FloatingBubbleService : Service(), LocationListener {
             hasBearing = hasBearing,
             bearingDegrees = bearingDeg
         )
-        applyRawGpsFixWithVietmapEngine(rawFix)
+        applyRawGpsFixWithSpeedEngine(rawFix)
     }
 
-    private fun applyRawGpsFixWithVietmapEngine(rawFix: RawGpsFix) {
+    private fun applyRawGpsFixWithSpeedEngine(rawFix: RawGpsFix) {
         val calcResult = speedCalculator.processGpsFix(rawFix, gpsOffsetKmh)
         if (!calcResult.isAccepted) {
             Log.w(
                 TELEMETRY_TAG,
                 "GPS_FIX_REJECTED: provider=${rawFix.provider} acc=${rawFix.accuracyMeters}m reason=${calcResult.sourceType}"
             )
-            // Cải tiến v2.2: Ngay cả khi tín hiệu GPS hơi yếu (>65m..140m) bị từ chối tính tốc độ,
-            // vẫn cập nhật tọa độ để quét biển báo/camera liên tục, tuyệt đối không để đứng hình!
             if (!rawFix.hasAccuracy || rawFix.accuracyMeters <= 140.0f) {
                 val moved = haversineMeters(currentLat, currentLon, rawFix.lat, rawFix.lon)
                 if (moved >= 4.0) {
@@ -757,7 +860,12 @@ class FloatingBubbleService : Service(), LocationListener {
     }
 
     private fun processSpatialQueryAndUpdateUI() {
-        val result = spatialEngine.queryLocation(currentLat, currentLon, currentBearing)
+        val result = spatialEngine.queryLocation(
+            lat = currentLat,
+            lon = currentLon,
+            bearingDeg = currentBearing,
+            currentSpeedKmh = currentSpeedKmh
+        )
         val isOverspeed = (result.currentSpeedLimit > 0) &&
                 (currentSpeedKmh > result.currentSpeedLimit + overspeedThresholdKmh)
 
@@ -770,7 +878,7 @@ class FloatingBubbleService : Service(), LocationListener {
         Log.i(
             TELEMETRY_TAG,
             String.format(
-                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h (%s) | limit=%d km/h | overspeed=%b | nearby=%d | alert=%s",
+                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h (%s) | limit=%d km/h | overspeed=%b | scan=%dm | nearby=%d | alert=%s",
                 simRouteIndex,
                 currentLat,
                 currentLon,
@@ -779,12 +887,16 @@ class FloatingBubbleService : Service(), LocationListener {
                 lastSpeedSource,
                 result.currentSpeedLimit,
                 isOverspeed,
+                result.adaptiveLookaheadMeters,
                 result.nearbyPointCount,
                 alertInfo
             )
         )
 
-        audioManager.checkAndAnnounceUpcomingAlert(result.upcomingAlert)
+        audioManager.checkAndAnnounceUpcomingAlert(
+            alert = result.upcomingAlert,
+            maxLookaheadM = result.adaptiveLookaheadMeters.toDouble()
+        )
         audioManager.checkAndAnnounceSpeedLimitChange(result.currentSpeedLimit)
         audioManager.checkAndAnnounceOverspeed(
             currentSpeedKmh = currentSpeedKmh,
@@ -792,7 +904,11 @@ class FloatingBubbleService : Service(), LocationListener {
             thresholdKmh = overspeedThresholdKmh
         )
 
-        updateBubbleWidgets(result.currentSpeedLimit, result.upcomingAlert)
+        updateBubbleWidgets(
+            speedLimit = result.currentSpeedLimit,
+            upcomingAlert = result.upcomingAlert,
+            maxLookaheadM = result.adaptiveLookaheadMeters.toDouble()
+        )
 
         val bIntent = Intent(ACTION_STATE_BROADCAST).apply {
             setPackage(packageName)
@@ -804,6 +920,7 @@ class FloatingBubbleService : Service(), LocationListener {
             putExtra("lon", currentLon)
             putExtra("bearing", currentBearing)
             putExtra("nearby_count", result.nearbyPointCount)
+            putExtra("adaptive_scan_m", result.adaptiveLookaheadMeters)
             if (result.upcomingAlert != null) {
                 putExtra("has_alert", true)
                 putExtra("alert_name", result.upcomingAlert.getTypeName())
@@ -840,7 +957,8 @@ class FloatingBubbleService : Service(), LocationListener {
 
     private fun updateBubbleWidgets(
         speedLimit: Int,
-        upcomingAlert: EdogPoint?
+        upcomingAlert: EdogPoint?,
+        maxLookaheadM: Double
     ) {
         tvCurrentSpeed?.text = currentSpeedKmh.toString()
 
@@ -860,7 +978,7 @@ class FloatingBubbleService : Service(), LocationListener {
             setAssetImage(ivSpeedLimitSign, signAsset, isSpeedSign = true)
         }
 
-        val hasCloseAlert = (upcomingAlert != null && upcomingAlert.distanceMeters <= 350.0)
+        val hasCloseAlert = (upcomingAlert != null && upcomingAlert.distanceMeters <= maxLookaheadM)
         val wasVisible = (alertExpandPanel?.visibility == View.VISIBLE)
         if (hasCloseAlert && !isUltraMiniMode && upcomingAlert != null) {
             alertExpandPanel?.visibility = View.VISIBLE
@@ -885,7 +1003,10 @@ class FloatingBubbleService : Service(), LocationListener {
             }
         }
 
-        applyBubbleScaleAndAlpha(isActiveAlertOrOverspeed = (isOverspeed || hasCloseAlert))
+        applyBubbleScaleAndAlpha(
+            isActiveAlertOrOverspeed = (isOverspeed || hasCloseAlert),
+            isAlertExpanded = nowVisible
+        )
     }
 
     private fun setAssetImage(imageView: ImageView?, assetPath: String, isSpeedSign: Boolean) {
@@ -950,7 +1071,7 @@ class FloatingBubbleService : Service(), LocationListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Bong bóng Tốc độ & Cảnh báo Vietmap Offline",
+                "Bong bóng Tốc độ & Cảnh báo VeloHUD Offline",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Duy trì bong bóng hiển thị tốc độ giới hạn trên màn hình ô tô"
@@ -982,7 +1103,7 @@ class FloatingBubbleService : Service(), LocationListener {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_bubble)
-            .setContentTitle("Vietmap Car Bubble v2.2 (Mini HUD)")
+            .setContentTitle("VeloHUD v3.0 (Mini HUD)")
             .setContentText(statusText)
             .setContentIntent(pendingOpen)
             .setOngoing(true)
@@ -1012,6 +1133,7 @@ class FloatingBubbleService : Service(), LocationListener {
         }
         audioManager.shutdown()
         spatialEngine.close()
+        releaseHardwareLocks()
         super.onDestroy()
     }
 

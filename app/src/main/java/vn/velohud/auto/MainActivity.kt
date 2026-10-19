@@ -1,4 +1,4 @@
-package vn.vietmap.carbubble
+package vn.velohud.auto
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -16,16 +16,18 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import vn.vietmap.carbubble.service.FloatingBubbleService
+import vn.velohud.auto.audio.AudioAlertManager
+import vn.velohud.auto.service.FloatingBubbleService
 
 /**
- * Màn hình điều khiển trung tâm (Dashboard v2.1):
- * - Mặc định 100% chạy chế độ GPS Thực Tế của xe (với thuật toán lọc vận tốc chuẩn Vietmap Live).
+ * Màn hình điều khiển trung tâm (VeloHUD v3.0 Dashboard):
+ * - Mặc định 100% chạy chế độ GPS Thực Tế của xe (với thuật toán lọc vận tốc GpsSpeedCalculator v3.0).
  * - Bộ cài đặt Tự động chạy khi khởi động xe (Auto-Start Suite):
  *   + Tự bật khi nổ máy / Boot Android Box (`BOOT_COMPLETED`, `LOCKED_BOOT_COMPLETED`, `QUICKBOOT_POWERON`).
  *   + Tự bật Bong bóng ngay khi mở App (`KEY_AUTO_START_ON_OPEN`).
  *   + Tự thu nhỏ App xuống nền sau 1.5s (`KEY_AUTO_MINIMIZE_ON_START`).
  *   + Nút cấp quyền Chạy ngầm không giới hạn Pin (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`).
+ * - Hỗ trợ 3 chế độ âm thanh Phòng thu MP3 Offline: Giọng nói + Chuông Ting, Chỉ Chuông Ting, Tắt âm.
  * - Chế độ Giả lập 30km được ẩn hoàn toàn khỏi giao diện người dùng (chỉ mở khi Developer gõ 5 lần vào tiêu đề hoặc gọi lệnh ADB `--ez debug_ui true`).
  */
 class MainActivity : AppCompatActivity() {
@@ -68,12 +70,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvIdleAlphaLabel: TextView
     private lateinit var swUltraMiniMode: Switch
 
-    // Speed Alert & ODO Offset Controls
+    // Speed Alert, Studio MP3 Sound Mode & ODO Offset Controls
     private lateinit var sbOverspeedThreshold: SeekBar
     private lateinit var tvOverspeedThresholdLabel: TextView
     private lateinit var sbGpsOffset: SeekBar
     private lateinit var tvGpsOffsetLabel: TextView
     private lateinit var swVoiceAlert: Switch
+    private lateinit var rgSoundMode: RadioGroup
+    private lateinit var rbSoundFull: RadioButton
+    private lateinit var rbSoundDing: RadioButton
+    private lateinit var rbSoundMute: RadioButton
 
     // Hidden Developer Debug Card
     private lateinit var cardDebugSimulation: LinearLayout
@@ -95,6 +101,7 @@ class MainActivity : AppCompatActivity() {
             val lon = intent.getDoubleExtra("lon", 0.0)
             val bearing = intent.getFloatExtra("bearing", 0f)
             val nearbyCount = intent.getIntExtra("nearby_count", 0)
+            val adaptiveScanM = intent.getIntExtra("adaptive_scan_m", 330)
             val hasAlert = intent.getBooleanExtra("has_alert", false)
 
             tvLiveSpeed.text = "$speedKmh km/h"
@@ -105,8 +112,8 @@ class MainActivity : AppCompatActivity() {
             }
             tvLiveZoneName.text = zoneName
             tvLiveCoords.text = String.format(
-                "GPS: %.5f, %.5f • Hướng: %.0f° • Nguồn: %s • Trạm: %d",
-                lat, lon, bearing, speedSource, nearbyCount
+                "GPS: %.5f, %.5f • Hướng: %.0f° • Tầm quét: %dm • Nguồn: %s (%d trạm)",
+                lat, lon, bearing, adaptiveScanM, speedSource, nearbyCount
             )
 
             val validSign = if (speedLimit in listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)) speedLimit else 60
@@ -222,6 +229,10 @@ class MainActivity : AppCompatActivity() {
             editor.putBoolean(FloatingBubbleService.KEY_ULTRA_MINI, intent.getBooleanExtra("ultra_mini", false))
             changed = true
         }
+        if (intent.hasExtra("sound_mode")) {
+            editor.putInt(FloatingBubbleService.KEY_SOUND_MODE, intent.getIntExtra("sound_mode", AudioAlertManager.SOUND_MODE_FULL))
+            changed = true
+        }
         if (intent.hasExtra("auto_boot")) {
             editor.putBoolean(FloatingBubbleService.KEY_AUTO_START_BOOT, intent.getBooleanExtra("auto_boot", true))
             changed = true
@@ -291,6 +302,10 @@ class MainActivity : AppCompatActivity() {
         sbGpsOffset = findViewById(R.id.sbGpsOffset)
         tvGpsOffsetLabel = findViewById(R.id.tvGpsOffsetLabel)
         swVoiceAlert = findViewById(R.id.swVoiceAlert)
+        rgSoundMode = findViewById(R.id.rgSoundMode)
+        rbSoundFull = findViewById(R.id.rbSoundFull)
+        rbSoundDing = findViewById(R.id.rbSoundDing)
+        rbSoundMute = findViewById(R.id.rbSoundMute)
 
         cardDebugSimulation = findViewById(R.id.cardDebugSimulation)
         rgLocationMode = findViewById(R.id.rgLocationMode)
@@ -356,7 +371,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    Toast.makeText(this, "Ứng dụng đã được cấp quyền chạy ngầm không giới hạn Pin!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "VeloHUD đã được cấp quyền chạy ngầm không giới hạn Pin!", Toast.LENGTH_SHORT).show()
                     updateBatteryOptimizationButton()
                 }
             }
@@ -451,6 +466,28 @@ class MainActivity : AppCompatActivity() {
 
         swVoiceAlert.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean(FloatingBubbleService.KEY_VOICE_ENABLED, isChecked).apply()
+            if (!isChecked) {
+                rbSoundMute.isChecked = true
+            } else if (rbSoundMute.isChecked) {
+                rbSoundFull.isChecked = true
+            }
+            notifyServiceReloadSettings()
+        }
+
+        rgSoundMode.setOnCheckedChangeListener { _, checkedId ->
+            val mode = when (checkedId) {
+                R.id.rbSoundFull -> AudioAlertManager.SOUND_MODE_FULL
+                R.id.rbSoundDing -> AudioAlertManager.SOUND_MODE_DING
+                else -> AudioAlertManager.SOUND_MODE_MUTE
+            }
+            val voiceEnabled = (mode != AudioAlertManager.SOUND_MODE_MUTE)
+            prefs.edit()
+                .putInt(FloatingBubbleService.KEY_SOUND_MODE, mode)
+                .putBoolean(FloatingBubbleService.KEY_VOICE_ENABLED, voiceEnabled)
+                .apply()
+            if (swVoiceAlert.isChecked != voiceEnabled) {
+                swVoiceAlert.isChecked = voiceEnabled
+            }
             notifyServiceReloadSettings()
         }
 
@@ -513,7 +550,14 @@ class MainActivity : AppCompatActivity() {
         val signStr = if (gpsOffset >= 0) "+$gpsOffset" else "$gpsOffset"
         tvGpsOffsetLabel.text = "Bù độ lệch đồng hồ ODO xe so với GPS: $signStr km/h"
 
-        swVoiceAlert.isChecked = prefs.getBoolean(FloatingBubbleService.KEY_VOICE_ENABLED, true)
+        val voiceEnabled = prefs.getBoolean(FloatingBubbleService.KEY_VOICE_ENABLED, true)
+        swVoiceAlert.isChecked = voiceEnabled
+        val soundMode = prefs.getInt(FloatingBubbleService.KEY_SOUND_MODE, AudioAlertManager.SOUND_MODE_FULL)
+        when {
+            !voiceEnabled || soundMode == AudioAlertManager.SOUND_MODE_MUTE -> rbSoundMute.isChecked = true
+            soundMode == AudioAlertManager.SOUND_MODE_DING -> rbSoundDing.isChecked = true
+            else -> rbSoundFull.isChecked = true
+        }
 
         val simOverride = prefs.getInt(FloatingBubbleService.KEY_SIM_SPEED_OVERRIDE, 0)
         sbSimSpeedOverride.progress = simOverride
@@ -549,7 +593,7 @@ class MainActivity : AppCompatActivity() {
         }
         Toast.makeText(
             this,
-            "Đã bật Bong bóng Siêu Gọn v2.1! Bạn có thể mở Google Maps ngay bây giờ.",
+            "Đã bật VeloHUD v3.0! Bạn có thể mở Google Maps ngay bây giờ.",
             Toast.LENGTH_LONG
         ).show()
     }
@@ -594,7 +638,7 @@ class MainActivity : AppCompatActivity() {
         if (!hasOverlayPermission() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Toast.makeText(
                 this,
-                "Vui lòng bật quyền 'Hiển thị trên ứng dụng khác' cho Vietmap Car Bubble",
+                "Vui lòng bật quyền 'Hiển thị trên ứng dụng khác' cho VeloHUD",
                 Toast.LENGTH_LONG
             ).show()
             val intent = Intent(
@@ -618,7 +662,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             btnGrantPermissions.visibility = View.GONE
             if (FloatingBubbleService.isServiceRunning) {
-                tvStatusBanner.text = "🟢 MINI HUD v2.2 ĐANG CHẠY • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
+                tvStatusBanner.text = "🟢 VELOHUD v3.0 ĐANG CHẠY • CSDL OFFLINE: 69,965 ĐIỂM TOÀN QUỐC"
                 tvStatusBanner.setTextColor(0xFF34D399.toInt())
                 btnToggleBubble.text = "⏹ TẮT BONG BÓNG TỐC ĐỘ"
                 btnToggleBubble.setBackgroundColor(0xFFDC2626.toInt())

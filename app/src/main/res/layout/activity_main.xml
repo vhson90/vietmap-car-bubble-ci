@@ -16,7 +16,7 @@
             android:id="@+id/tvHeaderTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="VIETMAP CAR BUBBLE v2.2 • MINI HUD OFFLINE"
+            android:text="VELOHUD v3.0 • MINI HUD OFFLINE"
             android:textColor="#38BDF8"
             android:textSize="19sp"
             android:textStyle="bold" />
@@ -55,7 +55,7 @@
             android:textSize="15sp"
             android:textStyle="bold" />
 
-        <!-- Card 1: Telemetry Trực Tiếp (GPS Thực Tế với Thuật toán lọc Vietmap Live) -->
+        <!-- Card 1: Telemetry Trực Tiếp (GPS Thực Tế với Thuật toán lọc Hybrid Doppler + Geodesic) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -128,7 +128,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="GPS: Chưa khóa vệ tinh • Lọc vận tốc: Hybrid Doppler + Geodesic (Vietmap Engine)"
+                android:text="GPS: Chưa khóa vệ tinh • Lọc vận tốc: Hybrid Doppler + Geodesic (VeloHUD Engine)"
                 android:textColor="#64748B"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -255,7 +255,7 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
-        <!-- Card 4: Cài đặt Cảnh báo & Bù sai số ODO -->
+        <!-- Card 4: Cài đặt Cảnh báo & Giọng nói Phòng thu MP3 Offline -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -267,7 +267,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⚙️ CÀI ĐẶT CẢNH BÁO TỐC ĐỘ &amp; GIỌNG NÓI TIẾNG VIỆT"
+                android:text="⚙️ CÀI ĐẶT CẢNH BÁO TỐC ĐỘ &amp; GIỌNG NÓI PHÒNG THU MP3"
                 android:textColor="#94A3B8"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -312,9 +312,48 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:checked="true"
-                android:text="🔊 Phát giọng nói Tiếng Việt báo biển tốc độ &amp; camera phạt nguội"
+                android:text="🔊 Phát giọng nói Tiếng Việt Phòng thu MP3 (Báo đúng 1 lần trước mỗi biển)"
                 android:textColor="#F1F5F9"
                 android:textSize="13.5sp" />
+
+            <RadioGroup
+                android:id="@+id/rgSoundMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rbSoundFull"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:buttonTint="#38BDF8"
+                    android:checked="true"
+                    android:text="Giọng nói + Ting"
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp" />
+
+                <RadioButton
+                    android:id="@+id/rbSoundDing"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:buttonTint="#38BDF8"
+                    android:text="Chỉ tiếng Ting"
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp" />
+
+                <RadioButton
+                    android:id="@+id/rbSoundMute"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:buttonTint="#38BDF8"
+                    android:text="Tắt âm"
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp" />
+            </RadioGroup>
         </LinearLayout>
 
         <!-- Card 5 (ẨN MẶC ĐỊNH - CHỈ DÀNH CHO DEVELOPER DEBUG): Giả lập lộ trình 30km -->

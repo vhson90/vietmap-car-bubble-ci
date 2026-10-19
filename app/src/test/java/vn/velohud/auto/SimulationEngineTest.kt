@@ -1,21 +1,23 @@
-package vn.vietmap.carbubble
+package vn.velohud.auto
 
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
-import vn.vietmap.carbubble.engine.RawGpsFix
-import vn.vietmap.carbubble.engine.VietmapSpeedCalculator
+import vn.velohud.auto.engine.EdogPoint
+import vn.velohud.auto.engine.GpsSpeedCalculator
+import vn.velohud.auto.engine.OfflineSpatialEngine
+import vn.velohud.auto.engine.RawGpsFix
 import java.io.File
 import java.sql.DriverManager
 import kotlin.math.*
 
 /**
- * Bộ kiểm thử tự động (JUnit Test Suite) chạy trên Cloud CI (GitHub Actions):
- * 1. Kiểm tra tính toàn vẹn của CSDL Offline vietmap_offline.db (69,965 điểm) & bộ icon PNG.
- * 2. Kiểm tra thuật toán tính vận tốc xe chuẩn Vietmap Live (`VietmapSpeedCalculator` v2.1):
+ * Bộ kiểm thử tự động (JUnit Test Suite) chạy trên Cloud CI (GitHub Actions) cho VeloHUD v3.0:
+ * 1. Kiểm tra tính toàn vẹn của CSDL Offline velohud_offline.db (69,965 điểm), bộ icon PNG và bộ 38 file âm thanh MP3 phòng thu.
+ * 2. Kiểm tra thuật toán tính vận tốc xe (`GpsSpeedCalculator` v3.0) & khoảng cách cảnh báo biến thiên (`computeAdaptiveLookaheadMeters`):
  *    - Vận tốc Doppler vệ tinh & Hybrid Doppler + Geodesic
  *    - Dự phòng Geodesic (`elapsedRealtimeNanos`) khi Android Box ô tô thiếu trường `location.speed`
- *    - Bộ lọc `isBetterLocation` loại bỏ nhiễu GPS (`accuracy > 48m`)
+ *    - Bộ lọc `isBetterLocation` loại bỏ nhiễu GPS (`accuracy > 65m`) và cửa sổ 8s chống đóng băng vị trí
  *    - Kẹp trần gia tốc vật lý (`<= 8.5 m/s^2`) & Watchdog trả về `0 km/h` sau `3.2s` dừng đèn đỏ
  * 3. Chạy mô phỏng toàn trình 598 tọa độ trên tuyến đường 30km TP.HCM (sample_route_30km.json)
  *    với thuật toán lọc hình nón phía trước (Forward Cone) và chốt giới hạn tốc độ (Latching).
@@ -27,9 +29,9 @@ class SimulationEngineTest {
         val assetsDir = File("src/main/assets")
         assertTrue("Thư mục assets phải tồn tại", assetsDir.exists())
 
-        val dbFile = File(assetsDir, "vietmap_offline.db")
-        assertTrue("File vietmap_offline.db phải tồn tại", dbFile.exists())
-        assertTrue("Dung lượng vietmap_offline.db phải > 5MB", dbFile.length() > 5_000_000L)
+        val dbFile = File(assetsDir, "velohud_offline.db")
+        assertTrue("File velohud_offline.db phải tồn tại", dbFile.exists())
+        assertTrue("Dung lượng velohud_offline.db phải > 5MB", dbFile.length() > 5_000_000L)
 
         // Kiểm tra bộ icon tốc độ
         val speedSigns = listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)
@@ -38,6 +40,34 @@ class SimulationEngineTest {
             assertTrue("Thiếu icon biển tốc độ speed/$s.png", icon.exists() && icon.length() > 100)
         }
 
+        // Kiểm tra bộ file âm thanh MP3 giọng người thật thu âm phòng thu (Studio MP3 Alerts)
+        val requiredSounds = listOf(
+            "only_ding.mp3",
+            "over_speed_ding.mp3",
+            "over_speed_limit.mp3",
+            "camera_speed.mp3",
+            "camera_traffic.mp3",
+            "vao_kdc.mp3",
+            "ra_kdc.mp3",
+            "next_speed_50.mp3",
+            "next_speed_60.mp3",
+            "next_speed_80.mp3",
+            "current_speed_50.mp3",
+            "current_speed_60.mp3",
+            "current_speed_80.mp3"
+        )
+        for (snd in requiredSounds) {
+            val mp3 = File(assetsDir, "sounds/$snd")
+            assertTrue("Thiếu file âm thanh phòng thu sounds/$snd", mp3.exists() && mp3.length() > 1000)
+        }
+
+        // Kiểm tra ánh xạ MP3 từ EdogPoint
+        val sampleCam = EdogPoint(1, 10.77, 106.69, type = 4, speedLimit = 60, dirFlag = 1, angle = 90)
+        assertEquals(
+            listOf("sounds/camera_speed.mp3", "sounds/current_speed_60.mp3"),
+            sampleCam.getVoiceMp3AssetPaths()
+        )
+
         // Kiểm tra kết nối SQLite và tổng số điểm
         Class.forName("org.sqlite.JDBC")
         DriverManager.getConnection("jdbc:sqlite:${dbFile.absolutePath}").use { conn ->
@@ -45,15 +75,20 @@ class SimulationEngineTest {
                 val rs = stmt.executeQuery("SELECT COUNT(*) FROM edog_points")
                 assertTrue(rs.next())
                 val count = rs.getInt(1)
-                println("[CI-TEST] Tổng số điểm trong vietmap_offline.db: $count")
+                println("[CI-TEST] Tổng số điểm trong velohud_offline.db: $count")
                 assertTrue("Số lượng điểm toàn quốc phải >= 69,900", count >= 69900)
             }
         }
     }
 
     @Test
-    fun testVietmapSpeedCalculatorAlgorithm() {
-        val calc = VietmapSpeedCalculator()
+    fun testGpsSpeedCalculatorAndAdaptiveLookahead() {
+        // Kiểm tra khoảng cách quét biển báo biến thiên theo tốc độ (warningAlertDistance)
+        assertEquals(240.0, OfflineSpatialEngine.computeAdaptiveLookaheadMeters(30), 0.01)
+        assertEquals(330.0, OfflineSpatialEngine.computeAdaptiveLookaheadMeters(55), 0.01)
+        assertEquals(450.0, OfflineSpatialEngine.computeAdaptiveLookaheadMeters(80), 0.01)
+
+        val calc = GpsSpeedCalculator()
         val baseTimeMs = 1_700_000_000_000L
         val baseNanos = 10_000_000_000L
 
@@ -97,8 +132,8 @@ class SimulationEngineTest {
         assertFalse("Bản tin GPS sai số 95m (> 65m) phải bị từ chối", resNoisy.isAccepted)
         assertEquals("REJECTED_NOISE", resNoisy.sourceType)
 
-        // 2b. Kiểm tra v2.2 Stale Fix Expiry (8 giây): Khi đi vào đường rợp cây (accuracy 45m so với 5m trước đó),
-        // sau 8.5 giây bản tin mới PHẢI được chấp nhận để không bao giờ bị treo vị trí suốt 2 phút!
+        // 2b. Kiểm tra Stale Fix Expiry (8 giây): Khi đi vào đường rợp cây (accuracy 45m so với 5m trước đó),
+        // sau 8.5 giây bản tin mới PHẢI được chấp nhận để không bao giờ bị treo vị trí!
         val urbanCanyonFix = fix1.copy(
             lat = 10.773000,
             lon = 106.699000,
@@ -111,7 +146,7 @@ class SimulationEngineTest {
         assertTrue("Bản tin GPS sau > 8s dù accuracy 45m phải được chấp nhận (chống đóng băng vị trí)", resUrban.isAccepted)
 
         // 3. Kiểm tra Geodesic Fallback & Bearing Anchor (khi Android Box không trả về location.speed/bearing)
-        val calcGeo = VietmapSpeedCalculator()
+        val calcGeo = GpsSpeedCalculator()
         val geoStart = RawGpsFix(
             lat = 10.770000,
             lon = 106.700000,
@@ -164,7 +199,7 @@ class SimulationEngineTest {
     @Test
     fun test30KmHcmcRouteSimulationAndAlerts() {
         val assetsDir = File("src/main/assets")
-        val dbFile = File(assetsDir, "vietmap_offline.db")
+        val dbFile = File(assetsDir, "velohud_offline.db")
         val routeFile = File(assetsDir, "sample_route_30km.json")
         assertTrue(routeFile.exists())
 
@@ -226,7 +261,7 @@ class SimulationEngineTest {
                             }
                         }
 
-                        if (distM in 12.0..450.0 && relAngle <= 42.0 && crossTrackM <= 35.0 && dirOk) {
+                        if (distM in 10.0..450.0 && relAngle <= 42.0 && crossTrackM <= 35.0 && dirOk) {
                             if (type == 4 || type == 9 || type == 12) {
                                 detectedCameras.add("ID=$id (Type=$type, Limit=$speedLimit) tại ($pLat, $pLon)")
                             }
@@ -250,8 +285,10 @@ class SimulationEngineTest {
             val reportDir = File("build/reports")
             reportDir.mkdirs()
             val reportJson = JSONObject().apply {
-                put("version", "2.2")
-                put("vietmap_speed_calculator_test", "PASSED")
+                put("brand", "VeloHUD")
+                put("version", "3.0.0")
+                put("gps_speed_calculator_test", "PASSED")
+                put("studio_mp3_assets_verified", true)
                 put("route_waypoints", coords.length())
                 put("speed_transitions_count", speedTransitions.size)
                 put("speed_transitions", speedTransitions)

@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VietmapCarBubble"
+rootProject.name = "VeloHUD"
 include(":app")

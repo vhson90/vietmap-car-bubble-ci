@@ -1,4 +1,4 @@
-name: Build & Test VietmapCarBubble APK
+name: Build & Test VeloHUD APK
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       - name: Upload APK and Simulation Test Report
         uses: actions/upload-artifact@v4
         with:
-          name: VietmapCarBubble-Release-Bundle
+          name: VeloHUD-Release-Bundle
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/reports/simulation_ci_report.json

@@ -1,4 +1,4 @@
-package vn.vietmap.carbubble.engine
+package vn.velohud.auto.engine
 
 import kotlin.math.*
 
@@ -22,7 +22,7 @@ data class RawGpsFix(
 )
 
 /**
- * Kết quả tính toán vận tốc & hướng di chuyển theo chuẩn thuật toán Vietmap Live (v2.2)
+ * Kết quả tính toán vận tốc & hướng di chuyển theo chuẩn thuật toán VeloHUD v3.0
  */
 data class ComputedSpeedResult(
     val isAccepted: Boolean,
@@ -33,16 +33,16 @@ data class ComputedSpeedResult(
 )
 
 /**
- * Bộ tính toán vận tốc & góc hướng lái xe (v2.2) học hỏi từ vn.vietmap.lib_location_engine:
+ * Bộ tính toán vận tốc & góc hướng lái xe (VeloHUD v3.0):
  * 1. Bộ lọc tọa độ tối ưu isBetterLocation (cửa sổ hết hạn ngắn 8 giây chống khóa cứng tọa độ khi đi vào đường rợp cây/nhà cao tầng).
  * 2. Điểm neo góc hướng lái (Bearing Anchor >= 3.2m) giúp cập nhật hướng xe mượt mà ngay cả khi GPS phát tần số cao 500ms (< 2.5m/nhịp).
  * 3. Kết hợp vận tốc sóng mang Doppler (location.speed) và vận tốc hình học Geodesic (Δs / Δt) dùng đồng hồ đơn điệu elapsedRealtimeNanos.
  * 4. Giới hạn gia tốc vật lý tối đa của ô tô (<= 8.5 m/s²) + Bộ lọc Kalman 1D + Watchdog 3.2s tự trả về 0 km/h khi dừng đèn đỏ.
  */
-class VietmapSpeedCalculator {
+class GpsSpeedCalculator {
 
     companion object {
-        // Cửa sổ 8 giây: Sau 8 giây, bản tin mới luôn được ưu tiên dù độ chính xác thấp hơn bản tin cũ (Chống kẹt tọa độ 2 phút!)
+        // Cửa sổ 8 giây: Sau 8 giây, bản tin mới luôn được ưu tiên dù độ chính xác thấp hơn bản tin cũ (Chống kẹt tọa độ!)
         private const val STALE_FIX_EXPIRY_MS = 8_000L
         private const val MAX_ACCEPTABLE_ACCURACY_M = 65.0f
         private const val MAX_PHYSICAL_ACCEL_MS2 = 8.5 // Gia tốc ô tô tối đa ~30.6 km/h mỗi giây
@@ -219,7 +219,7 @@ class VietmapSpeedCalculator {
     }
 
     /**
-     * Thuật toán isBetterLocation cải tiến v2.2:
+     * Thuật toán isBetterLocation chuẩn VeloHUD v3.0:
      * - Loại bỏ bản tin sai số ngang quá lớn (> 65m).
      * - Cửa sổ hết hạn ngắn (8 giây) để khi xe đi từ chỗ thoáng (sai số 2m) vào phố hẹp (sai số 35-50m) không bao giờ bị khóa cứng tọa độ!
      */

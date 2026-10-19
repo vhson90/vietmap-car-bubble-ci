@@ -1,4 +1,4 @@
-package vn.vietmap.carbubble.engine
+package vn.velohud.auto.engine
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -8,7 +8,7 @@ import java.io.FileOutputStream
 import kotlin.math.*
 
 /**
- * Dữ liệu của một điểm Biển báo / Camera giải mã từ edogen.bin & Hybrid Cells
+ * Dữ liệu của một điểm Biển báo / Camera giải mã từ CSDL Không gian Offline VeloHUD
  */
 data class EdogPoint(
     val id: Int,
@@ -35,6 +35,32 @@ data class EdogPoint(
             11 -> "Đi chậm / Ngã tư nguy hiểm"
             12 -> "Chốt đèn tín hiệu Hybrid"
             else -> "Biển cảnh báo giao thông"
+        }
+    }
+
+    /**
+     * Trả về đường dẫn file âm thanh MP3 giọng người thật thu âm phòng thu trong `assets/sounds/`
+     */
+    fun getVoiceMp3AssetPaths(): List<String> {
+        val validSpeed = if (speedLimit in listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)) speedLimit else 0
+        return when (type) {
+            1 -> if (validSpeed > 0) listOf("sounds/next_speed_${validSpeed}.mp3") else listOf("sounds/kiem_tra_toc_do.mp3")
+            2 -> listOf("sounds/vao_kdc.mp3")
+            3 -> listOf("sounds/ra_kdc.mp3")
+            4 -> if (validSpeed > 0) {
+                listOf("sounds/camera_speed.mp3", "sounds/current_speed_${validSpeed}.mp3")
+            } else {
+                listOf("sounds/camera_traffic.mp3")
+            }
+            5 -> listOf("sounds/vao_cam_vuot.mp3")
+            6 -> listOf("sounds/ra_cam_vuot.mp3")
+            7 -> listOf("sounds/tram_thu_phi.mp3")
+            8 -> listOf("sounds/vao_duong_ham.mp3")
+            9 -> listOf("sounds/camera_traffic.mp3")
+            10 -> listOf("sounds/giao_duong_sat.mp3")
+            11 -> listOf("sounds/kiem_tra_toc_do.mp3")
+            12 -> listOf("sounds/camera_ai.mp3")
+            else -> listOf("sounds/camera.mp3")
         }
     }
 
@@ -82,27 +108,42 @@ data class SpatialStateResult(
     val currentSpeedLimit: Int,
     val activeZoneName: String,
     val upcomingAlert: EdogPoint?,
-    val nearbyPointCount: Int
+    val nearbyPointCount: Int,
+    val adaptiveLookaheadMeters: Int = 330
 )
 
 /**
- * Engine truy vấn không gian Offline 100% từ SQLite Database (69,965 điểm toàn quốc) — Phiên bản v2.2:
- * - Tính khoảng cách chiếu dọc trục đường (`alongTrackMeters = dist * cos(relAngle)`) để hiển thị khoảng cách chính xác tới vạch biển báo/camera.
- * - Bộ phát hiện điểm đã đi qua (`passedPointIds` + `minSeenDistMap` CPA Receding Detector):
- *   Ngay khi xe đi ngang qua biển/camera (`alongTrack <= 12m`) hoặc khoảng cách bắt đầu tăng trở lại sau khi tiến vào vùng gần (`dist > minSeenDist + 4.5m`),
- *   lập tức đánh dấu điểm đó (cùng các bản ghi kép trong bán kính 95m) vào `passedPointIds` để xóa ngay khỏi màn hình, không bao giờ bị treo biển cũ.
+ * Engine truy vấn không gian Offline 100% từ SQLite Database (69,965 điểm toàn quốc) — Phiên bản VeloHUD v3.0:
+ * - Cự ly cảnh báo biến thiên theo vận tốc (`warningAlertDistance`):
+ *   + Đi chậm trong phố (< 40 km/h): Quét 240m phía trước (tránh báo sớm biển báo cách 2–3 ngã tư).
+ *   + Đi đường trục đô thị (40..65 km/h): Quét 330m phía trước.
+ *   + Đi quốc lộ / cao tốc (> 65 km/h): Tự động nới tầm quét lên 450m phía trước.
+ * - Tính khoảng cách chiếu dọc trục đường (`alongTrackMeters = dist * cos(relAngle)`).
+ * - Cơ chế `cleanWhenOut()` + `minSeenDistMap` CPA Receding Detector:
+ *   Xóa biển/camera ngay lập tức khi xe đi ngang qua trụ biển (`alongTrack <= 10m`) hoặc góc lệch > 80° hoặc khoảng cách bắt đầu tăng trở lại.
  */
 class OfflineSpatialEngine(private val context: Context) {
 
     companion object {
         private const val TAG = "OfflineSpatialEngine"
-        private const val DB_NAME = "vietmap_offline.db"
+        private const val DB_NAME = "velohud_offline.db"
         private const val SEARCH_RADIUS_DEG = 0.0055    // ~600m bounding box
-        private const val FORWARD_SCAN_MAX_M = 420.0    // Cảnh báo trước tối đa 420m
-        private const val LATCH_SIGN_ALONG_M = 38.0     // Chốt biển tốc độ mới khi cách mũi xe <= 38m dọc đường
-        private const val PASS_CAMERA_ALONG_M = 12.0    // Xóa camera/biển phụ ngay khi cách mũi xe <= 12m
+        private const val LATCH_SIGN_ALONG_M = 36.0     // Chốt biển tốc độ mới khi cách mũi xe <= 36m dọc đường
+        private const val PASS_CAMERA_ALONG_M = 10.0    // cleanWhenOut: Xóa camera/biển phụ ngay khi cách mũi xe <= 10m
         private const val MAX_CROSS_TRACK_M = 34.0      // Độ lệch ngang làn đường tối đa 34m
         private const val CLUSTER_DEDUP_RADIUS_M = 35.0 // Bán kính gộp các bản ghi kép tại cùng 1 trụ/giá long môn
+
+        /**
+         * Tính cự ly quét cảnh báo phía trước biến thiên theo vận tốc thực tế (`warningAlertDistance`)
+         */
+        fun computeAdaptiveLookaheadMeters(currentSpeedKmh: Int): Double {
+            return when {
+                currentSpeedKmh in 1..39 -> 240.0  // Nội đô đông đúc: tránh bắt nhầm biển cách 2-3 ngã tư
+                currentSpeedKmh in 40..65 -> 330.0 // Đường trục đô thị tiêu chuẩn
+                currentSpeedKmh > 65 -> 450.0      // Quốc lộ / Cao tốc: báo sớm từ 450m
+                else -> 330.0                      // Khi xe đang dừng (0 km/h) hoặc mới khởi động
+            }
+        }
     }
 
     private var db: SQLiteDatabase? = null
@@ -114,7 +155,7 @@ class OfflineSpatialEngine(private val context: Context) {
         private set
     private var lastLatchedPointId: Int = -1
 
-    // Bộ nhớ các điểm đã đi qua (Passed Points) & Khoảng cách cực cận (CPA) trong vùng 600m quanh xe
+    // Bộ nhớ các điểm đã đi qua (cleanWhenOut / Passed Points) & Khoảng cách cực cận (CPA)
     private val passedPointIds = HashSet<Int>()
     private val minSeenDistMap = HashMap<Int, Double>()
 
@@ -122,7 +163,7 @@ class OfflineSpatialEngine(private val context: Context) {
         return try {
             val dbFile = File(context.filesDir, DB_NAME)
             if (!dbFile.exists() || dbFile.length() < 100_000L) {
-                Log.i(TAG, "Đang giải nén CSDL Offline vietmap_offline.db (69,965 điểm)...")
+                Log.i(TAG, "Đang giải nén CSDL Offline $DB_NAME (69,965 điểm)...")
                 context.assets.open(DB_NAME).use { input ->
                     FileOutputStream(dbFile).use { output ->
                         val buffer = ByteArray(64 * 1024)
@@ -152,14 +193,21 @@ class OfflineSpatialEngine(private val context: Context) {
     }
 
     /**
-     * Truy vấn tốc độ giới hạn hiện tại và biển báo/camera sắp tới dựa trên GPS (lat, lon, bearing)
+     * Truy vấn tốc độ giới hạn hiện tại và biển báo/camera sắp tới dựa trên GPS (lat, lon, bearing, currentSpeedKmh)
      */
-    fun queryLocation(lat: Double, lon: Double, bearingDeg: Float): SpatialStateResult {
+    fun queryLocation(
+        lat: Double,
+        lon: Double,
+        bearingDeg: Float,
+        currentSpeedKmh: Int = 50
+    ): SpatialStateResult {
+        val adaptiveMaxScanM = computeAdaptiveLookaheadMeters(currentSpeedKmh)
         val database = db ?: return SpatialStateResult(
             currentSpeedLimit = latchedSpeedLimit,
             activeZoneName = activeZoneDescription,
             upcomingAlert = null,
-            nearbyPointCount = 0
+            nearbyPointCount = 0,
+            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt()
         )
 
         val minLat = lat - SEARCH_RADIUS_DEG
@@ -216,7 +264,7 @@ class OfflineSpatialEngine(private val context: Context) {
 
         val forwardAlerts = ArrayList<EdogPoint>()
 
-        // Vòng 1: Cập nhật CPA (Closest Point of Approach), chốt biển tốc độ và đánh dấu các điểm đã đi qua
+        // Vòng 1: Cập nhật CPA (Closest Point of Approach), chốt biển tốc độ và thực thi cleanWhenOut()
         for (pt in candidates) {
             val bearingToPoint = calculateBearing(lat, lon, pt.lat, pt.lon)
             val relAngle = angleDiff(bearingDeg.toDouble(), bearingToPoint)
@@ -231,7 +279,6 @@ class OfflineSpatialEngine(private val context: Context) {
             if (!isDirectionCompatible) continue
 
             if (pt.distanceMeters <= 160.0 && crossTrackM <= MAX_CROSS_TRACK_M + 10.0) {
-                // Chỉ ghi nhận khoảng cách cực cận (CPA) cho các điểm từng xuất hiện ở bán cầu phía trước mũi xe (relAngle <= 75 độ)
                 if (relAngle <= 75.0 || minSeenDistMap.containsKey(pt.id)) {
                     val prevMin = minSeenDistMap[pt.id] ?: Double.MAX_VALUE
                     if (pt.distanceMeters < prevMin) {
@@ -240,24 +287,21 @@ class OfflineSpatialEngine(private val context: Context) {
                 }
                 val currentMin = minSeenDistMap[pt.id]
 
-                // Phát hiện xe đã đi ngang qua hoặc đang rời xa điểm này (CPA Receding):
-                // 1) Điểm từng ở phía trước (currentMin != null <= 95m) và nay đã trôi về phía sau góc 80 độ
-                // 2) Khoảng cách thực tế đã tăng thêm >= 4.0m so với điểm cực cận (currentMin <= 85m)
-                // 3) Khoảng cách chiếu dọc đường từ -18m..12m (xe đang đi ngang qua vạch biển báo/camera)
-                val isRecedingFromClose = (currentMin != null && currentMin <= 85.0 && pt.distanceMeters > currentMin + 4.0)
+                // Cơ chế cleanWhenOut(): Xóa ngay lập tức khi xe đi ngang qua hoặc vừa vượt qua điểm đặt biển
+                val isRecedingFromClose = (currentMin != null && currentMin <= 85.0 && pt.distanceMeters > currentMin + 3.8)
                 val isBehindBumper = (currentMin != null && currentMin <= 95.0 && relAngle > 80.0)
-                val isAtSignLine = (alongTrackM in -18.0..PASS_CAMERA_ALONG_M && crossTrackM <= MAX_CROSS_TRACK_M)
+                val isAtSignLine = (alongTrackM in -20.0..PASS_CAMERA_ALONG_M && crossTrackM <= MAX_CROSS_TRACK_M)
 
                 if (isRecedingFromClose || isBehindBumper || isAtSignLine) {
                     if (pt.id !in passedPointIds) {
                         latchSpeedLimitIfNeeded(pt)
                     }
-                    markPointAndClusterAsPassed(pt, candidates, bearingDeg.toDouble())
+                    cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
                 }
             }
 
-            // Nếu là biển báo tốc độ / khu dân cư và xe đã tiến vào phạm vi chốt biển (<= 38m dọc đường, phía trước mũi xe)
+            // Nếu là biển báo tốc độ / khu dân cư và xe đã tiến vào phạm vi chốt biển (<= 36m dọc đường, phía trước mũi xe)
             if (alongTrackM in 0.0..LATCH_SIGN_ALONG_M &&
                 relAngle <= 48.0 &&
                 crossTrackM <= MAX_CROSS_TRACK_M &&
@@ -266,17 +310,15 @@ class OfflineSpatialEngine(private val context: Context) {
             ) {
                 if (pt.type in listOf(1, 2, 3)) {
                     latchSpeedLimitIfNeeded(pt)
-                    // Khi biển tốc độ đã được chốt lên vòng tròn chính, ẩn ngay khỏi nhãn báo trước để không bị trùng lặp
-                    markPointAndClusterAsPassed(pt, candidates, bearingDeg.toDouble())
+                    cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
                 } else if (pt.type == 4 && pt.speedLimit >= 30) {
-                    // Camera phạt nguội có kèm tốc độ giới hạn: chốt tốc độ nhưng vẫn giữ hiển thị camera cho tới khi đi qua (<= 12m)
                     latchSpeedLimitIfNeeded(pt)
                 }
             }
         }
 
-        // Vòng 2: Lọc danh sách các biển báo / camera thực sự còn ở phía trước mũi xe (Chưa đi qua)
+        // Vòng 2: Lọc danh sách các biển báo / camera thực sự còn ở phía trước mũi xe trong tầm warningAlertDistance
         for (pt in candidates) {
             if (pt.id in passedPointIds) continue
 
@@ -289,18 +331,16 @@ class OfflineSpatialEngine(private val context: Context) {
             val crossTrackM = abs(pt.distanceMeters * sin(rad))
             val isDirectionCompatible = isSignDirectionMatched(bearingDeg.toDouble(), pt.angle, pt.dirFlag)
 
-            // Không hiển thị các điểm đang có khoảng cách tăng dần (đã đi qua điểm cực cận)
             val minSeen = minSeenDistMap[pt.id]
-            if (minSeen != null && minSeen <= 90.0 && pt.distanceMeters > minSeen + 4.0) {
-                markPointAndClusterAsPassed(pt, candidates, bearingDeg.toDouble())
+            if (minSeen != null && minSeen <= 90.0 && pt.distanceMeters > minSeen + 3.8) {
+                cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                 continue
             }
 
-            if (alongTrackM in PASS_CAMERA_ALONG_M..FORWARD_SCAN_MAX_M &&
+            if (alongTrackM in PASS_CAMERA_ALONG_M..adaptiveMaxScanM &&
                 crossTrackM <= MAX_CROSS_TRACK_M &&
                 isDirectionCompatible
             ) {
-                // Lưu khoảng cách chiếu dọc trục đường (alongTrackM) để hiển thị chính xác tuyệt đối từ mũi xe tới vạch biển báo
                 forwardAlerts.add(pt.copy(distanceMeters = max(10.0, alongTrackM)))
             }
         }
@@ -322,7 +362,8 @@ class OfflineSpatialEngine(private val context: Context) {
             currentSpeedLimit = latchedSpeedLimit,
             activeZoneName = activeZoneDescription,
             upcomingAlert = bestUpcoming,
-            nearbyPointCount = candidates.size
+            nearbyPointCount = candidates.size,
+            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt()
         )
     }
 
@@ -357,9 +398,10 @@ class OfflineSpatialEngine(private val context: Context) {
     }
 
     /**
-     * Đánh dấu điểm `pt` và toàn bộ các bản ghi trùng lặp cùng loại, cùng hướng trong bán kính 35m tại trụ/giá long môn đó là ĐÃ ĐI QUA
+     * Cơ chế `cleanWhenOut`: Đánh dấu điểm `pt` và toàn bộ các bản ghi trùng lặp cùng loại, cùng hướng
+     * trong bán kính 35m tại trụ/giá long môn đó là ĐÃ ĐI QUA để xóa ngay khỏi giao diện.
      */
-    private fun markPointAndClusterAsPassed(pt: EdogPoint, candidates: List<EdogPoint>, carBearing: Double) {
+    private fun cleanWhenOut(pt: EdogPoint, candidates: List<EdogPoint>, carBearing: Double) {
         passedPointIds.add(pt.id)
         for (other in candidates) {
             if (other.id == pt.id || other.id in passedPointIds) continue
@@ -382,7 +424,7 @@ class OfflineSpatialEngine(private val context: Context) {
 
     private fun isSignDirectionMatched(carBearing: Double, signAngle: Int, dirFlag: Int): Boolean {
         if (dirFlag == 0 || signAngle <= 0 || signAngle > 360) return true
-        // Chỉ khớp các biển báo / camera cùng chiều di chuyển của xe (chênh lệch góc <= 48°),
+        // Chỉ khớp các biển báo / camera cùng chiều di chuyển của xe (bearingTol <= 48°),
         // tuyệt đối không bắt nhầm biển báo / camera của làn ngược chiều bên kia con lươn!
         val diffSame = angleDiff(carBearing, signAngle.toDouble())
         return diffSame <= 48.0
