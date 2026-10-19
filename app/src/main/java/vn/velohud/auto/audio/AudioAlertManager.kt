@@ -12,7 +12,7 @@ import kotlin.math.*
 /**
  * Bộ quản lý âm thanh cảnh báo Tiếng Việt VeloHUD v3.0 (Studio MP3 Offline + Chuông Ting + markRead 1-Shot):
  * - Thay thế hoàn toàn sự phụ thuộc vào Google TTS bằng bộ 38 file âm thanh MP3 giọng người thật thu âm phòng thu
- *   (`assets/sounds/*.mp3`) phát trực tiếp qua `MediaPlayer`, đảm bảo 100% đầu Android Box ô tô phát giọng nói Tiếng Việt
+ *   (`assets/sounds/`) phát trực tiếp qua `MediaPlayer`, đảm bảo 100% đầu Android Box ô tô phát giọng nói Tiếng Việt
  *   rõ nét ngay cả khi không có mạng và không cài gói TTS hệ thống.
  * - Hỗ trợ 3 chế độ âm thanh chuẩn thực tế:
  *   + `SOUND_MODE_FULL (0)`: Giọng nói Phòng thu MP3 + Chuông Ting (`only_ding.mp3` / `over_speed_ding.mp3`)

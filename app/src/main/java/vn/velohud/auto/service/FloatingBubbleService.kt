@@ -42,7 +42,7 @@ import kotlin.math.*
  *    Giữ CPU & GNSS trong Foreground Service luôn hoạt động 100% thời gian thực khi chạy nền lâu.
  * 2. Co giãn LayoutParams thật + `miniModeSignScale` + Hiệu ứng hít mép màn hình mượt mà (`ValueAnimator` Edge-Snap).
  * 3. Khoảng cách quét biển báo biến thiên theo tốc độ (`warningAlertDistance`: 240m / 330m / 450m) + `cleanWhenOut()`.
- * 4. Phát giọng nói Tiếng Việt thu âm phòng thu (`assets/sounds/*.mp3`) kèm khóa `markRead` 1 lần duy nhất.
+ * 4. Phát giọng nói Tiếng Việt thu âm phòng thu (`assets/sounds/`) kèm khóa `markRead` 1 lần duy nhất.
  */
 class FloatingBubbleService : Service(), LocationListener {
 
