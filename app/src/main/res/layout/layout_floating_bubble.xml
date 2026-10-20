@@ -85,10 +85,13 @@
                 android:id="@+id/tvUpcomingAlertDistance"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:text="150m"
-                android:textColor="#FBBF24"
-                android:textSize="12sp"
+                android:maxWidth="112dp"
+                android:maxLines="1"
+                android:text="Đường nội đô"
+                android:textColor="#38BDF8"
+                android:textSize="11sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -97,10 +100,10 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:maxWidth="82dp"
+                android:maxWidth="112dp"
                 android:maxLines="1"
-                android:text="Camera"
-                android:textColor="#E2E8F0"
+                android:text="Giới hạn 50 km/h"
+                android:textColor="#94A3B8"
                 android:textSize="9sp" />
         </LinearLayout>
     </LinearLayout>

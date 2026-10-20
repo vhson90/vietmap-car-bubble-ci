@@ -11,8 +11,8 @@ android {
         applicationId = "vn.velohud.auto"
         minSdk = 23 // Tương thích từ Android 6.0 đến Android 15 (Mọi dòng Android Car Box & Emulator)
         targetSdk = 34
-        versionCode = 4
-        versionName = "3.0.0"
+        versionCode = 5
+        versionName = "3.1.0"
     }
 
     buildTypes {
@@ -36,7 +36,7 @@ android {
 
     // Không nén file velohud_offline.db và mp3 để copy/phát trực tiếp qua AssetFileDescriptor siêu tốc
     androidResources {
-        noCompress += listOf("db", "sqlite", "mp3")
+        noCompress += listOf("db", "sqlite", "mp3", "bin")
     }
 
     testOptions {

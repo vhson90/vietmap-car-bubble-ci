@@ -102,14 +102,16 @@ data class EdogPoint(
 }
 
 /**
- * Kết quả truy vấn trạng thái tốc độ giới hạn & cảnh báo phía trước tại tọa độ GPS hiện tại
+ * Kết quả truy vấn trạng thái tốc độ giới hạn, tên đường hiện tại & cảnh báo phía trước tại tọa độ GPS hiện tại
  */
 data class SpatialStateResult(
     val currentSpeedLimit: Int,
     val activeZoneName: String,
     val upcomingAlert: EdogPoint?,
     val nearbyPointCount: Int,
-    val adaptiveLookaheadMeters: Int = 330
+    val adaptiveLookaheadMeters: Int = 330,
+    val currentRoadName: String = "Đường nội đô",
+    val currentAdminArea: String = ""
 )
 
 /**
@@ -147,13 +149,26 @@ class OfflineSpatialEngine(private val context: Context) {
     }
 
     private var db: SQLiteDatabase? = null
+    private val nationalRoadMatcher = NationalRoadMatcher(context)
+    private val liveTileMatcher = LiveVectorTileMatcher()
 
-    // Trạng thái chốt tốc độ giới hạn hiện tại trên cung đường
-    var latchedSpeedLimit: Int = 60
+    // Trạng thái chốt tốc độ giới hạn & Tên đường hiện tại trên cung đường
+    var latchedSpeedLimit: Int = 50
         private set
-    var activeZoneDescription: String = "Đô thị tiêu chuẩn (60 km/h)"
+    var activeZoneDescription: String = "Đường nội đô (50 km/h)"
         private set
+    var currentRoadName: String = "Đường nội đô"
+        private set
+    var currentAdminArea: String = ""
+        private set
+
     private var lastLatchedPointId: Int = -1
+    private var hasActiveSignLatch: Boolean = false
+    private var signLatchedRoadName: String = ""
+    private var signLatchedBaseRoadSpeed: Int = 50
+    private var signLatchedAtLat: Double = 0.0
+    private var signLatchedAtLon: Double = 0.0
+    private var signLatchedBearing: Double = 0.0
 
     // Bộ nhớ các điểm đã đi qua (cleanWhenOut / Passed Points) & Khoảng cách cực cận (CPA)
     private val passedPointIds = HashSet<Int>()
@@ -177,6 +192,8 @@ class OfflineSpatialEngine(private val context: Context) {
                 Log.i(TAG, "Hoàn tất sao chép CSDL Offline (${dbFile.length() / 1024} KB)")
             }
             db = SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+            val roadOk = nationalRoadMatcher.initialize()
+            Log.i(TAG, "Trạng thái khởi tạo NationalRoadMatcher Toàn Quốc: $roadOk")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi khởi tạo CSDL Offline: ${e.message}", e)
@@ -184,12 +201,17 @@ class OfflineSpatialEngine(private val context: Context) {
         }
     }
 
-    fun resetLatchedState(defaultLimit: Int = 60) {
+    fun resetLatchedState(defaultLimit: Int = 50) {
         latchedSpeedLimit = defaultLimit
-        activeZoneDescription = "Đô thị tiêu chuẩn ($defaultLimit km/h)"
+        activeZoneDescription = "Đường nội đô ($defaultLimit km/h)"
+        currentRoadName = "Đường nội đô"
+        currentAdminArea = ""
         lastLatchedPointId = -1
+        hasActiveSignLatch = false
+        signLatchedRoadName = ""
         passedPointIds.clear()
         minSeenDistMap.clear()
+        nationalRoadMatcher.resetState()
     }
 
     /**
@@ -202,12 +224,69 @@ class OfflineSpatialEngine(private val context: Context) {
         currentSpeedKmh: Int = 50
     ): SpatialStateResult {
         val adaptiveMaxScanM = computeAdaptiveLookaheadMeters(currentSpeedKmh)
+
+        // Tầng 1 & 3: Nhận diện Tên đường, Phường/Xã, Tỉnh/Thành & Tốc độ mặc định của đoạn đường (50/60/70/80/90/120 km/h)
+        var roadMatch = nationalRoadMatcher.matchRoad(lat, lon, bearingDeg)
+        if (!roadMatch.isNamedRoad) {
+            val mvtFallback = liveTileMatcher.queryFallbackIfAvailable(lat, lon)
+            if (mvtFallback != null) {
+                roadMatch = roadMatch.copy(
+                    roadName = mvtFallback.first,
+                    speedLimitKmh = mvtFallback.second,
+                    isNamedRoad = true
+                )
+            }
+        }
+
+        currentRoadName = roadMatch.roadName
+        currentAdminArea = when {
+            roadMatch.districtName.isNotEmpty() && roadMatch.cityName.isNotEmpty() ->
+                "${roadMatch.districtName}, ${roadMatch.cityName}"
+            roadMatch.districtName.isNotEmpty() -> roadMatch.districtName
+            roadMatch.cityName.isNotEmpty() -> roadMatch.cityName
+            else -> ""
+        }
+        val roadDefaultSpeed = roadMatch.speedLimitKmh
+
+        // Kiểm tra xem xe đã rẽ sang đường mới hoặc đổi phân đoạn tốc độ mới chưa để nhả biển chốt cũ
+        if (hasActiveSignLatch) {
+            val distFromSignM = haversineMeters(lat, lon, signLatchedAtLat, signLatchedAtLon)
+            val turnAngle = angleDiff(bearingDeg.toDouble(), signLatchedBearing)
+            val switchedNamedRoad = roadMatch.isNamedRoad &&
+                    signLatchedRoadName.isNotEmpty() &&
+                    roadMatch.roadName != signLatchedRoadName
+            val madeSharpTurn = distFromSignM > 45.0 && turnAngle >= 48.0
+            val roadClassSpeedChanged = distFromSignM > 220.0 && roadDefaultSpeed != signLatchedBaseRoadSpeed
+            val signExpiredByDistance = distFromSignM > 1500.0
+
+            if (switchedNamedRoad || madeSharpTurn || roadClassSpeedChanged || signExpiredByDistance) {
+                hasActiveSignLatch = false
+            }
+        }
+
+        if (!hasActiveSignLatch) {
+            latchedSpeedLimit = roadDefaultSpeed
+            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
+                "$currentRoadName • $currentAdminArea (${latchedSpeedLimit} km/h)"
+            } else {
+                "$currentRoadName (${latchedSpeedLimit} km/h)"
+            }
+        } else {
+            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
+                "$currentRoadName • $currentAdminArea (Biển ${latchedSpeedLimit} km/h)"
+            } else {
+                "$currentRoadName (Biển ${latchedSpeedLimit} km/h)"
+            }
+        }
+
         val database = db ?: return SpatialStateResult(
             currentSpeedLimit = latchedSpeedLimit,
             activeZoneName = activeZoneDescription,
             upcomingAlert = null,
             nearbyPointCount = 0,
-            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt()
+            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt(),
+            currentRoadName = currentRoadName,
+            currentAdminArea = currentAdminArea
         )
 
         val minLat = lat - SEARCH_RADIUS_DEG
@@ -294,7 +373,7 @@ class OfflineSpatialEngine(private val context: Context) {
 
                 if (isRecedingFromClose || isBehindBumper || isAtSignLine) {
                     if (pt.id !in passedPointIds) {
-                        latchSpeedLimitIfNeeded(pt)
+                        latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
                     }
                     cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
@@ -309,11 +388,11 @@ class OfflineSpatialEngine(private val context: Context) {
                 pt.id !in passedPointIds
             ) {
                 if (pt.type in listOf(1, 2, 3)) {
-                    latchSpeedLimitIfNeeded(pt)
+                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
                     cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
                 } else if (pt.type == 4 && pt.speedLimit >= 30) {
-                    latchSpeedLimitIfNeeded(pt)
+                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
                 }
             }
         }
@@ -363,35 +442,67 @@ class OfflineSpatialEngine(private val context: Context) {
             activeZoneName = activeZoneDescription,
             upcomingAlert = bestUpcoming,
             nearbyPointCount = candidates.size,
-            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt()
+            adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt(),
+            currentRoadName = currentRoadName,
+            currentAdminArea = currentAdminArea
         )
     }
 
-    private fun latchSpeedLimitIfNeeded(pt: EdogPoint) {
+    private fun latchSpeedLimitIfNeeded(
+        pt: EdogPoint,
+        carLat: Double,
+        carLon: Double,
+        carBearing: Double,
+        roadDefaultSpeed: Int
+    ) {
         if (pt.id == lastLatchedPointId) return
         when (pt.type) {
             1 -> if (pt.speedLimit >= 30) {
                 latchedSpeedLimit = pt.speedLimit
-                activeZoneDescription = "Biển giới hạn ${pt.speedLimit} km/h"
+                hasActiveSignLatch = true
+                signLatchedRoadName = currentRoadName
+                signLatchedBaseRoadSpeed = roadDefaultSpeed
+                signLatchedAtLat = carLat
+                signLatchedAtLon = carLon
+                signLatchedBearing = carBearing
+                activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
+                    "$currentRoadName • $currentAdminArea (Biển ${pt.speedLimit} km/h)"
+                } else {
+                    "$currentRoadName (Biển ${pt.speedLimit} km/h)"
+                }
                 lastLatchedPointId = pt.id
             }
             2 -> {
-                if (latchedSpeedLimit > 60) {
-                    latchedSpeedLimit = 60
-                }
-                activeZoneDescription = "Khu đông dân cư (${latchedSpeedLimit} km/h)"
+                latchedSpeedLimit = if (roadDefaultSpeed in listOf(50, 60)) roadDefaultSpeed else 60
+                hasActiveSignLatch = true
+                signLatchedRoadName = currentRoadName
+                signLatchedBaseRoadSpeed = roadDefaultSpeed
+                signLatchedAtLat = carLat
+                signLatchedAtLon = carLon
+                signLatchedBearing = carBearing
+                activeZoneDescription = "$currentRoadName • Khu đông dân cư (${latchedSpeedLimit} km/h)"
                 lastLatchedPointId = pt.id
             }
             3 -> {
-                if (latchedSpeedLimit < 80) {
-                    latchedSpeedLimit = 80
-                }
-                activeZoneDescription = "Ngoài khu dân cư (${latchedSpeedLimit} km/h)"
+                latchedSpeedLimit = if (roadDefaultSpeed >= 70) roadDefaultSpeed else 80
+                hasActiveSignLatch = true
+                signLatchedRoadName = currentRoadName
+                signLatchedBaseRoadSpeed = roadDefaultSpeed
+                signLatchedAtLat = carLat
+                signLatchedAtLon = carLon
+                signLatchedBearing = carBearing
+                activeZoneDescription = "$currentRoadName • Ngoài khu dân cư (${latchedSpeedLimit} km/h)"
                 lastLatchedPointId = pt.id
             }
             4 -> if (pt.speedLimit >= 30) {
                 latchedSpeedLimit = pt.speedLimit
-                activeZoneDescription = "Khu vực Camera (${pt.speedLimit} km/h)"
+                hasActiveSignLatch = true
+                signLatchedRoadName = currentRoadName
+                signLatchedBaseRoadSpeed = roadDefaultSpeed
+                signLatchedAtLat = carLat
+                signLatchedAtLon = carLon
+                signLatchedBearing = carBearing
+                activeZoneDescription = "$currentRoadName • Khu vực Camera (${pt.speedLimit} km/h)"
                 lastLatchedPointId = pt.id
             }
         }
@@ -435,6 +546,7 @@ class OfflineSpatialEngine(private val context: Context) {
             db?.close()
         } catch (_: Exception) {
         }
+        nationalRoadMatcher.close()
     }
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

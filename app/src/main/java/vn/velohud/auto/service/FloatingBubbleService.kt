@@ -485,9 +485,10 @@ class FloatingBubbleService : Service(), LocationListener {
             alertTextContainer?.layoutParams = (alertTextContainer?.layoutParams as? LinearLayout.LayoutParams)?.apply {
                 marginStart = dpToPx(4f * scale)
             }
-            tvUpcomingAlertDistance?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * scale)
+            tvUpcomingAlertDistance?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * scale)
+            tvUpcomingAlertDistance?.maxWidth = dpToPx(112f * scale)
             tvUpcomingAlertName?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f * scale)
-            tvUpcomingAlertName?.maxWidth = dpToPx(86f * scale)
+            tvUpcomingAlertName?.maxWidth = dpToPx(112f * scale)
 
             rootBubbleContainer?.requestLayout()
             if (::layoutParams.isInitialized && bubbleView != null && bubbleView?.isAttachedToWindow == true) {
@@ -570,7 +571,7 @@ class FloatingBubbleService : Service(), LocationListener {
                             val msg = if (isUltraMiniMode) {
                                 "VeloHUD: Chế độ Tối Giản (Chỉ hiện 2 vòng tròn)"
                             } else {
-                                "VeloHUD: Chế độ Thông Minh (Tự bung nhãn Camera)"
+                                "VeloHUD: Chế độ Thông Minh (Hiện Tên đường & Camera)"
                             }
                             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                             refreshBubbleUI()
@@ -878,7 +879,7 @@ class FloatingBubbleService : Service(), LocationListener {
         Log.i(
             TELEMETRY_TAG,
             String.format(
-                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h (%s) | limit=%d km/h | overspeed=%b | scan=%dm | nearby=%d | alert=%s",
+                "STATE: wp=%d | gps=(%.5f,%.5f) | brg=%.0f | speed=%d km/h (%s) | limit=%d km/h | road=%s (%s) | overspeed=%b | scan=%dm | nearby=%d | alert=%s",
                 simRouteIndex,
                 currentLat,
                 currentLon,
@@ -886,6 +887,8 @@ class FloatingBubbleService : Service(), LocationListener {
                 currentSpeedKmh,
                 lastSpeedSource,
                 result.currentSpeedLimit,
+                result.currentRoadName,
+                result.currentAdminArea,
                 isOverspeed,
                 result.adaptiveLookaheadMeters,
                 result.nearbyPointCount,
@@ -907,7 +910,9 @@ class FloatingBubbleService : Service(), LocationListener {
         updateBubbleWidgets(
             speedLimit = result.currentSpeedLimit,
             upcomingAlert = result.upcomingAlert,
-            maxLookaheadM = result.adaptiveLookaheadMeters.toDouble()
+            maxLookaheadM = result.adaptiveLookaheadMeters.toDouble(),
+            roadName = result.currentRoadName,
+            adminArea = result.currentAdminArea
         )
 
         val bIntent = Intent(ACTION_STATE_BROADCAST).apply {
@@ -916,6 +921,8 @@ class FloatingBubbleService : Service(), LocationListener {
             putExtra("speed_source", lastSpeedSource)
             putExtra("speed_limit", result.currentSpeedLimit)
             putExtra("zone_name", result.activeZoneName)
+            putExtra("road_name", result.currentRoadName)
+            putExtra("admin_area", result.currentAdminArea)
             putExtra("lat", currentLat)
             putExtra("lon", currentLon)
             putExtra("bearing", currentBearing)
@@ -958,7 +965,9 @@ class FloatingBubbleService : Service(), LocationListener {
     private fun updateBubbleWidgets(
         speedLimit: Int,
         upcomingAlert: EdogPoint?,
-        maxLookaheadM: Double
+        maxLookaheadM: Double,
+        roadName: String = "Đường nội đô",
+        adminArea: String = ""
     ) {
         tvCurrentSpeed?.text = currentSpeedKmh.toString()
 
@@ -980,16 +989,32 @@ class FloatingBubbleService : Service(), LocationListener {
 
         val hasCloseAlert = (upcomingAlert != null && upcomingAlert.distanceMeters <= maxLookaheadM)
         val wasVisible = (alertExpandPanel?.visibility == View.VISIBLE)
-        if (hasCloseAlert && !isUltraMiniMode && upcomingAlert != null) {
+        if (!isUltraMiniMode) {
             alertExpandPanel?.visibility = View.VISIBLE
-            val distM = upcomingAlert.distanceMeters.roundToInt()
-            tvUpcomingAlertDistance?.text = "${distM}m"
-            tvUpcomingAlertName?.text = getCompactAlertTitle(upcomingAlert)
+            if (hasCloseAlert && upcomingAlert != null) {
+                ivUpcomingAlertIcon?.visibility = View.VISIBLE
+                val distM = upcomingAlert.distanceMeters.roundToInt()
+                tvUpcomingAlertDistance?.text = "${distM}m • ${getCompactAlertTitle(upcomingAlert)}"
+                tvUpcomingAlertDistance?.setTextColor(0xFFFBBF24.toInt())
+                tvUpcomingAlertName?.text = roadName
+                tvUpcomingAlertName?.setTextColor(0xFFE2E8F0.toInt())
 
-            val alertAsset = upcomingAlert.getAlertAssetPath()
-            if (alertAsset != currentAlertAssetPath) {
-                currentAlertAssetPath = alertAsset
-                setAssetImage(ivUpcomingAlertIcon, alertAsset, isSpeedSign = (upcomingAlert.type == 1))
+                val alertAsset = upcomingAlert.getAlertAssetPath()
+                if (alertAsset != currentAlertAssetPath) {
+                    currentAlertAssetPath = alertAsset
+                    setAssetImage(ivUpcomingAlertIcon, alertAsset, isSpeedSign = (upcomingAlert.type == 1))
+                }
+            } else {
+                ivUpcomingAlertIcon?.visibility = View.GONE
+                tvUpcomingAlertDistance?.text = roadName
+                tvUpcomingAlertDistance?.setTextColor(0xFF38BDF8.toInt())
+                val subAdmin = if (adminArea.isNotEmpty()) {
+                    adminArea.substringBefore(",")
+                } else {
+                    "Giới hạn ${validSignSpeed} km/h"
+                }
+                tvUpcomingAlertName?.text = subAdmin
+                tvUpcomingAlertName?.setTextColor(0xFF94A3B8.toInt())
             }
         } else {
             alertExpandPanel?.visibility = View.GONE
