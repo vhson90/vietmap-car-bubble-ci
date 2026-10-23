@@ -25,15 +25,15 @@ data class EdogPoint(
             1 -> "Biển giới hạn ${speedLimit} km/h"
             2 -> "Vào khu đông dân cư"
             3 -> "Ra khỏi khu dân cư"
-            4 -> if (speedLimit > 0) "Camera phạt nguội (${speedLimit} km/h)" else "Camera phạt nguội / Đèn đỏ"
+            4 -> "Khu vực giảm tốc / Chú ý"
             5 -> "Biển cấm vượt"
             6 -> "Hết cấm vượt"
-            7 -> "Trạm thu phí ETC"
-            8 -> "Đường hầm / Trạm dừng"
-            9 -> "Camera giám sát giao thông"
-            10 -> "Giao nhau với đường sắt"
-            11 -> "Đi chậm / Ngã tư nguy hiểm"
-            12 -> "Chốt đèn tín hiệu Hybrid"
+            7 -> if (speedLimit >= 80) "Điểm kiểm tra tốc độ (${speedLimit} km/h)" else "Giao nhau với đường sắt"
+            8 -> "Trạm thu phí ETC"
+            9 -> "Đường hầm"
+            10 -> if (speedLimit > 0) "Camera phạt nguội (${speedLimit} km/h)" else "Camera phạt nguội"
+            11 -> if (speedLimit > 0) "Camera giao thông (${speedLimit} km/h)" else "Camera giám sát / Đèn đỏ"
+            12 -> "Camera AI giám sát"
             else -> "Biển cảnh báo giao thông"
         }
     }
@@ -47,18 +47,22 @@ data class EdogPoint(
             1 -> if (validSpeed > 0) listOf("sounds/next_speed_${validSpeed}.mp3") else listOf("sounds/kiem_tra_toc_do.mp3")
             2 -> listOf("sounds/vao_kdc.mp3")
             3 -> listOf("sounds/ra_kdc.mp3")
-            4 -> if (validSpeed > 0) {
+            4 -> listOf("sounds/kiem_tra_toc_do.mp3")
+            5 -> listOf("sounds/vao_cam_vuot.mp3")
+            6 -> listOf("sounds/ra_cam_vuot.mp3")
+            7 -> if (speedLimit >= 80) listOf("sounds/kiem_tra_toc_do.mp3") else listOf("sounds/giao_duong_sat.mp3")
+            8 -> listOf("sounds/tram_thu_phi.mp3")
+            9 -> listOf("sounds/vao_duong_ham.mp3")
+            10 -> if (validSpeed > 0) {
                 listOf("sounds/camera_speed.mp3", "sounds/current_speed_${validSpeed}.mp3")
+            } else {
+                listOf("sounds/camera_speed.mp3")
+            }
+            11 -> if (validSpeed > 0) {
+                listOf("sounds/camera_traffic.mp3", "sounds/current_speed_${validSpeed}.mp3")
             } else {
                 listOf("sounds/camera_traffic.mp3")
             }
-            5 -> listOf("sounds/vao_cam_vuot.mp3")
-            6 -> listOf("sounds/ra_cam_vuot.mp3")
-            7 -> listOf("sounds/tram_thu_phi.mp3")
-            8 -> listOf("sounds/vao_duong_ham.mp3")
-            9 -> listOf("sounds/camera_traffic.mp3")
-            10 -> listOf("sounds/giao_duong_sat.mp3")
-            11 -> listOf("sounds/kiem_tra_toc_do.mp3")
             12 -> listOf("sounds/camera_ai.mp3")
             else -> listOf("sounds/camera.mp3")
         }
@@ -70,16 +74,23 @@ data class EdogPoint(
             1 -> "Phía trước ${roundedDist} mét, tốc độ giới hạn ${speedLimit} ki lô mét trên giờ"
             2 -> "Phía trước ${roundedDist} mét, bắt đầu vào khu dân cư"
             3 -> "Phía trước ${roundedDist} mét, ra khỏi khu đông dân cư"
-            4 -> if (speedLimit > 0) {
+            4 -> "Phía trước ${roundedDist} mét, chú ý giảm tốc độ"
+            5 -> "Phía trước ${roundedDist} mét, khu vực cấm vượt"
+            6 -> "Phía trước ${roundedDist} mét, hết khu vực cấm vượt"
+            7 -> if (speedLimit >= 80) {
+                "Phía trước ${roundedDist} mét, điểm kiểm tra tốc độ ${speedLimit} ki lô mét trên giờ"
+            } else {
+                "Chú ý! Phía trước ${roundedDist} mét giao nhau với đường sắt"
+            }
+            8 -> "Phía trước ${roundedDist} mét, trạm thu phí không dừng E T C"
+            9 -> "Phía trước ${roundedDist} mét, chuẩn bị vào đường hầm"
+            10 -> if (speedLimit > 0) {
                 "Chú ý! Cách ${roundedDist} mét có camera phạt nguội giới hạn ${speedLimit} ki lô mét trên giờ"
             } else {
                 "Chú ý! Cách ${roundedDist} mét có camera giám sát phạt nguội"
             }
-            5 -> "Phía trước ${roundedDist} mét, khu vực cấm vượt"
-            7 -> "Phía trước ${roundedDist} mét, trạm thu phí không dừng E T C"
-            9 -> "Phía trước ${roundedDist} mét, có camera giám sát giao thông"
-            10 -> "Chú ý! Phía trước ${roundedDist} mét giao nhau với đường sắt"
-            12 -> "Phía trước ${roundedDist} mét có chốt đèn tín hiệu giao thông"
+            11 -> "Phía trước ${roundedDist} mét, có camera giám sát giao thông"
+            12 -> "Phía trước ${roundedDist} mét có camera A I giám sát giao thông"
             else -> "Chú ý biển báo phía trước cách ${roundedDist} mét"
         }
     }
@@ -89,12 +100,14 @@ data class EdogPoint(
             1 -> "speed/${if (speedLimit in listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)) speedLimit else 60}.png"
             2 -> "alerts/residential_area_in.png"
             3 -> "alerts/residential_area_out.png"
-            4 -> if (speedLimit > 0) "alerts/speed_limit_camera.png" else "alerts/penalty_camera.png"
+            4 -> "alerts/speed_limit_checkpoint.png"
             5 -> "alerts/no_passing_in.png"
             6 -> "alerts/no_passing_out.png"
-            7 -> "alerts/toll_fee_etc.png"
-            9 -> "alerts/traffic_camera.png"
-            10 -> "alerts/railway.png"
+            7 -> if (speedLimit >= 80) "alerts/speed_limit_checkpoint.png" else "alerts/railway.png"
+            8 -> "alerts/toll_fee_etc.png"
+            9 -> "alerts/tunnel.png"
+            10 -> if (speedLimit > 0) "alerts/speed_limit_camera.png" else "alerts/penalty_camera.png"
+            11 -> "alerts/traffic_camera.png"
             12 -> "alerts/penalty_camera.png"
             else -> "alerts/traffic_camera.png"
         }
@@ -130,7 +143,7 @@ class OfflineSpatialEngine(private val context: Context) {
         private const val TAG = "OfflineSpatialEngine"
         private const val DB_NAME = "velohud_offline.db"
         private const val SEARCH_RADIUS_DEG = 0.0055    // ~600m bounding box
-        private const val LATCH_SIGN_ALONG_M = 36.0     // Chốt biển tốc độ mới khi cách mũi xe <= 36m dọc đường
+        private const val LATCH_SIGN_ALONG_M = 15.0     // Chốt biển tốc độ mới khi xe thực sự tiến sát biển (<= 15m dọc đường)
         private const val PASS_CAMERA_ALONG_M = 10.0    // cleanWhenOut: Xóa camera/biển phụ ngay khi cách mũi xe <= 10m
         private const val MAX_CROSS_TRACK_M = 34.0      // Độ lệch ngang làn đường tối đa 34m
         private const val CLUSTER_DEDUP_RADIUS_M = 35.0 // Bán kính gộp các bản ghi kép tại cùng 1 trụ/giá long môn
@@ -169,6 +182,11 @@ class OfflineSpatialEngine(private val context: Context) {
     private var signLatchedAtLat: Double = 0.0
     private var signLatchedAtLon: Double = 0.0
     private var signLatchedBearing: Double = 0.0
+
+    // Trạng thái vùng Khu đông dân cư (TYPE = 2: true, TYPE = 3: false, null: tự động theo đồ thị đường)
+    private var inResidentialZone: Boolean? = null
+    private var residentialSignLat: Double = 0.0
+    private var residentialSignLon: Double = 0.0
 
     // Bộ nhớ các điểm đã đi qua (cleanWhenOut / Passed Points) & Khoảng cách cực cận (CPA)
     private val passedPointIds = HashSet<Int>()
@@ -209,6 +227,7 @@ class OfflineSpatialEngine(private val context: Context) {
         lastLatchedPointId = -1
         hasActiveSignLatch = false
         signLatchedRoadName = ""
+        inResidentialZone = null
         passedPointIds.clear()
         minSeenDistMap.clear()
         nationalRoadMatcher.resetState()
@@ -248,15 +267,19 @@ class OfflineSpatialEngine(private val context: Context) {
         }
         val roadDefaultSpeed = roadMatch.speedLimitKmh
 
-        // Kiểm tra xem xe đã rẽ sang đường mới hoặc đổi phân đoạn tốc độ mới chưa để nhả biển chốt cũ
+        // Kiểm tra xem xe đã rẽ sang đường mới hoặc đổi phân đoạn tốc độ mới chưa để nhả biển chốt cũ (TYPE = 1, 10)
         if (hasActiveSignLatch) {
             val distFromSignM = haversineMeters(lat, lon, signLatchedAtLat, signLatchedAtLon)
+            // Đồng bộ tốc độ nền của đoạn đường ngay sau biển báo (trong 85m đầu tiên sau biển)
+            if (distFromSignM in 15.0..85.0 && roadDefaultSpeed == latchedSpeedLimit) {
+                signLatchedBaseRoadSpeed = roadDefaultSpeed
+            }
             val turnAngle = angleDiff(bearingDeg.toDouble(), signLatchedBearing)
             val switchedNamedRoad = roadMatch.isNamedRoad &&
                     signLatchedRoadName.isNotEmpty() &&
                     roadMatch.roadName != signLatchedRoadName
             val madeSharpTurn = distFromSignM > 45.0 && turnAngle >= 48.0
-            val roadClassSpeedChanged = distFromSignM > 220.0 && roadDefaultSpeed != signLatchedBaseRoadSpeed
+            val roadClassSpeedChanged = distFromSignM > 85.0 && roadDefaultSpeed != signLatchedBaseRoadSpeed
             val signExpiredByDistance = distFromSignM > 1500.0
 
             if (switchedNamedRoad || madeSharpTurn || roadClassSpeedChanged || signExpiredByDistance) {
@@ -264,20 +287,21 @@ class OfflineSpatialEngine(private val context: Context) {
             }
         }
 
-        if (!hasActiveSignLatch) {
-            latchedSpeedLimit = roadDefaultSpeed
-            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
-                "$currentRoadName • $currentAdminArea (${latchedSpeedLimit} km/h)"
-            } else {
-                "$currentRoadName (${latchedSpeedLimit} km/h)"
-            }
-        } else {
-            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
-                "$currentRoadName • $currentAdminArea (Biển ${latchedSpeedLimit} km/h)"
-            } else {
-                "$currentRoadName (Biển ${latchedSpeedLimit} km/h)"
+        // Kiểm tra thời hạn hiệu lực vùng đệm biển Khu dân cư (TYPE = 2 / TYPE = 3)
+        if (inResidentialZone != null) {
+            val distFromResM = haversineMeters(lat, lon, residentialSignLat, residentialSignLon)
+            if (inResidentialZone == true) {
+                if (distFromResM > 1800.0 || (distFromResM > 300.0 && roadDefaultSpeed >= 90)) {
+                    inResidentialZone = null
+                }
+            } else if (inResidentialZone == false) {
+                if (distFromResM > 1200.0 || (distFromResM > 250.0 && roadDefaultSpeed in 30..60)) {
+                    inResidentialZone = null
+                }
             }
         }
+
+        applyEffectiveSpeedAndZone(roadMatch)
 
         val database = db ?: return SpatialStateResult(
             currentSpeedLimit = latchedSpeedLimit,
@@ -316,6 +340,11 @@ class OfflineSpatialEngine(private val context: Context) {
                     val speedLimit = cursor.getInt(4)
                     val dirFlag = cursor.getInt(5)
                     val angle = cursor.getInt(6)
+
+                    // Bỏ qua 23,342 điểm giảm tốc chung (TYPE = 4, speed_limit = 0) để tránh báo giả liên tục tại mọi ngã tư,
+                    // và bỏ qua cảnh báo đường sắt (TYPE = 7, speed_limit < 80) khi đang chạy trên đường cao tốc (>= 90 km/h)
+                    if (type == 4 && speedLimit == 0) continue
+                    if (type == 7 && speedLimit < 80 && roadDefaultSpeed >= 90) continue
 
                     val distM = haversineMeters(lat, lon, pLat, pLon)
                     candidates.add(
@@ -373,14 +402,14 @@ class OfflineSpatialEngine(private val context: Context) {
 
                 if (isRecedingFromClose || isBehindBumper || isAtSignLine) {
                     if (pt.id !in passedPointIds) {
-                        latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
+                        latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadMatch)
                     }
                     cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
                 }
             }
 
-            // Nếu là biển báo tốc độ / khu dân cư và xe đã tiến vào phạm vi chốt biển (<= 36m dọc đường, phía trước mũi xe)
+            // Nếu là biển báo tốc độ / khu dân cư và xe đã tiến sát phạm vi chốt biển (<= 15m dọc đường, phía trước mũi xe)
             if (alongTrackM in 0.0..LATCH_SIGN_ALONG_M &&
                 relAngle <= 48.0 &&
                 crossTrackM <= MAX_CROSS_TRACK_M &&
@@ -388,11 +417,11 @@ class OfflineSpatialEngine(private val context: Context) {
                 pt.id !in passedPointIds
             ) {
                 if (pt.type in listOf(1, 2, 3)) {
-                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
+                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadMatch)
                     cleanWhenOut(pt, candidates, bearingDeg.toDouble())
                     continue
-                } else if (pt.type == 4 && pt.speedLimit >= 30) {
-                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadDefaultSpeed)
+                } else if (pt.type == 10 && pt.speedLimit >= 30) {
+                    latchSpeedLimitIfNeeded(pt, lat, lon, bearingDeg.toDouble(), roadMatch)
                 }
             }
         }
@@ -427,10 +456,11 @@ class OfflineSpatialEngine(private val context: Context) {
         // Ưu tiên chọn điểm cảnh báo quan trọng gần nhất phía trước
         val bestUpcoming = forwardAlerts.minByOrNull { pt ->
             val priorityWeight = when {
-                pt.type == 4 -> 0.55 // Ưu tiên số 1: Camera phạt nguội / bắn tốc độ
+                pt.type == 10 -> 0.55 // Ưu tiên số 1: Camera phạt nguội / bắn tốc độ
                 pt.type == 1 && pt.speedLimit != latchedSpeedLimit -> 0.65 // Ưu tiên số 2: Biển ĐỔI giới hạn tốc độ mới
                 pt.type in listOf(2, 3) -> 0.75 // Biển Khu dân cư / Hết KDC
-                pt.type in listOf(9, 12) -> 0.85 // Camera giám sát / Đèn đỏ
+                pt.type in listOf(11, 12) -> 0.85 // Camera giám sát giao thông / Đèn đỏ / Camera AI
+                pt.type in listOf(8, 9) -> 0.95 // Trạm thu phí ETC / Đường hầm
                 pt.type == 1 && pt.speedLimit == latchedSpeedLimit -> 1.60 // Biển nhắc lại cùng tốc độ hiện tại
                 else -> 1.10
             }
@@ -448,14 +478,58 @@ class OfflineSpatialEngine(private val context: Context) {
         )
     }
 
+    /**
+     * Tính toán tốc độ giới hạn hiệu lực (`latchedSpeedLimit`) từ Đồ thị Đường bộ Toàn quốc (`NationalRoadMatcher`),
+     * kết hợp trạng thái biển báo tốc độ (`hasActiveSignLatch`) và trạng thái Khu đông dân cư (`inResidentialZone`).
+     */
+    private fun applyEffectiveSpeedAndZone(roadMatch: RoadMatchResult) {
+        val roadDefaultSpeed = roadMatch.speedLimitKmh
+        if (!hasActiveSignLatch) {
+            latchedSpeedLimit = when (inResidentialZone) {
+                true -> {
+                    // Trong khu đông dân cư: Nếu bản đồ đường đã có tốc độ nội thị (30..60 km/h) -> lấy chính xác từng đoạn (50 hoặc 60).
+                    // Nếu vừa qua chân biển mà đoạn bản đồ chưa kịp chuyển (vẫn > 60) -> Đường đôi/1 chiều: 60 km/h, Đường 2 chiều: 50 km/h.
+                    if (roadDefaultSpeed in 30..60) {
+                        roadDefaultSpeed
+                    } else {
+                        if (roadMatch.isOneWay) 60 else 50
+                    }
+                }
+                false -> {
+                    // Ngoài khu đông dân cư: Nếu bản đồ đường đã >= 70 km/h -> lấy chính xác từng đoạn (70/80/90/120).
+                    // Nếu vừa qua chân biển Hết KDC mà bản đồ chưa kịp chuyển (vẫn <= 60) -> Đường đôi/1 chiều: 90 km/h, Đường 2 chiều: 80 km/h.
+                    if (roadDefaultSpeed >= 70) {
+                        roadDefaultSpeed
+                    } else {
+                        if (roadMatch.isOneWay) 90 else 80
+                    }
+                }
+                null -> roadDefaultSpeed
+            }
+
+            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
+                "$currentRoadName • $currentAdminArea (${latchedSpeedLimit} km/h)"
+            } else {
+                "$currentRoadName (${latchedSpeedLimit} km/h)"
+            }
+        } else {
+            activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
+                "$currentRoadName • $currentAdminArea (Biển ${latchedSpeedLimit} km/h)"
+            } else {
+                "$currentRoadName (Biển ${latchedSpeedLimit} km/h)"
+            }
+        }
+    }
+
     private fun latchSpeedLimitIfNeeded(
         pt: EdogPoint,
         carLat: Double,
         carLon: Double,
         carBearing: Double,
-        roadDefaultSpeed: Int
+        roadMatch: RoadMatchResult
     ) {
         if (pt.id == lastLatchedPointId) return
+        val roadDefaultSpeed = roadMatch.speedLimitKmh
         when (pt.type) {
             1 -> if (pt.speedLimit >= 30) {
                 latchedSpeedLimit = pt.speedLimit
@@ -465,36 +539,28 @@ class OfflineSpatialEngine(private val context: Context) {
                 signLatchedAtLat = carLat
                 signLatchedAtLon = carLon
                 signLatchedBearing = carBearing
-                activeZoneDescription = if (currentAdminArea.isNotEmpty()) {
-                    "$currentRoadName • $currentAdminArea (Biển ${pt.speedLimit} km/h)"
-                } else {
-                    "$currentRoadName (Biển ${pt.speedLimit} km/h)"
-                }
                 lastLatchedPointId = pt.id
+                applyEffectiveSpeedAndZone(roadMatch)
             }
             2 -> {
-                latchedSpeedLimit = if (roadDefaultSpeed in listOf(50, 60)) roadDefaultSpeed else 60
-                hasActiveSignLatch = true
-                signLatchedRoadName = currentRoadName
-                signLatchedBaseRoadSpeed = roadDefaultSpeed
-                signLatchedAtLat = carLat
-                signLatchedAtLon = carLon
-                signLatchedBearing = carBearing
-                activeZoneDescription = "$currentRoadName • Khu đông dân cư (${latchedSpeedLimit} km/h)"
+                // Vào khu đông dân cư: Giải phóng mọi khóa biển tốc độ cũ, kích hoạt chế độ bám sát tốc độ 50/60 từng đoạn đường
+                hasActiveSignLatch = false
+                inResidentialZone = true
+                residentialSignLat = carLat
+                residentialSignLon = carLon
                 lastLatchedPointId = pt.id
+                applyEffectiveSpeedAndZone(roadMatch)
             }
             3 -> {
-                latchedSpeedLimit = if (roadDefaultSpeed >= 70) roadDefaultSpeed else 80
-                hasActiveSignLatch = true
-                signLatchedRoadName = currentRoadName
-                signLatchedBaseRoadSpeed = roadDefaultSpeed
-                signLatchedAtLat = carLat
-                signLatchedAtLon = carLon
-                signLatchedBearing = carBearing
-                activeZoneDescription = "$currentRoadName • Ngoài khu dân cư (${latchedSpeedLimit} km/h)"
+                // Ra khỏi khu đông dân cư: Giải phóng khóa biển cũ, chuyển sang tốc độ ngoài khu dân cư (70/80/90 km/h)
+                hasActiveSignLatch = false
+                inResidentialZone = false
+                residentialSignLat = carLat
+                residentialSignLon = carLon
                 lastLatchedPointId = pt.id
+                applyEffectiveSpeedAndZone(roadMatch)
             }
-            4 -> if (pt.speedLimit >= 30) {
+            10 -> if (pt.speedLimit >= 30) {
                 latchedSpeedLimit = pt.speedLimit
                 hasActiveSignLatch = true
                 signLatchedRoadName = currentRoadName
@@ -502,8 +568,8 @@ class OfflineSpatialEngine(private val context: Context) {
                 signLatchedAtLat = carLat
                 signLatchedAtLon = carLon
                 signLatchedBearing = carBearing
-                activeZoneDescription = "$currentRoadName • Khu vực Camera (${pt.speedLimit} km/h)"
                 lastLatchedPointId = pt.id
+                applyEffectiveSpeedAndZone(roadMatch)
             }
         }
     }
@@ -529,7 +595,7 @@ class OfflineSpatialEngine(private val context: Context) {
         if (a.type == b.type) {
             return a.type != 1 || a.speedLimit == b.speedLimit
         }
-        val camTypes = setOf(4, 9, 12)
+        val camTypes = setOf(10, 11, 12)
         return (a.type in camTypes && b.type in camTypes)
     }
 

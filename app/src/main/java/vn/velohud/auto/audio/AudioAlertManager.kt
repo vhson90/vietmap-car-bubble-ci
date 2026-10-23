@@ -129,7 +129,7 @@ class AudioAlertManager(private val context: Context) {
         )
         lastUpcomingVoiceTimeMs = now
 
-        if (alert.speedLimit >= 30 && (alert.type == 1 || alert.type == 4)) {
+        if (alert.speedLimit >= 30 && (alert.type == 1 || alert.type == 10 || alert.type == 11)) {
             lastAnnouncedUpcomingLimit = alert.speedLimit
             lastAnnouncedUpcomingLimitTimeMs = now
         }
@@ -289,7 +289,7 @@ class AudioAlertManager(private val context: Context) {
         if (typeA == typeB) {
             return typeA != 1 || limitA == limitB
         }
-        val camTypes = setOf(4, 9, 12)
+        val camTypes = setOf(10, 11, 12)
         return (typeA in camTypes && typeB in camTypes)
     }
 

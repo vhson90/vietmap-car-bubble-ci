@@ -61,12 +61,16 @@ class SimulationEngineTest {
             assertTrue("Thiếu file âm thanh phòng thu sounds/$snd", mp3.exists() && mp3.length() > 1000)
         }
 
-        // Kiểm tra ánh xạ MP3 từ EdogPoint
-        val sampleCam = EdogPoint(1, 10.77, 106.69, type = 4, speedLimit = 60, dirFlag = 1, angle = 90)
+        // Kiểm tra ánh xạ MP3 từ EdogPoint (TYPE 10 = Camera phạt nguội/tốc độ, TYPE 8 = Trạm thu phí ETC, TYPE 9 = Đường hầm)
+        val sampleCam = EdogPoint(1, 10.77, 106.69, type = 10, speedLimit = 60, dirFlag = 1, angle = 90)
         assertEquals(
             listOf("sounds/camera_speed.mp3", "sounds/current_speed_60.mp3"),
             sampleCam.getVoiceMp3AssetPaths()
         )
+        val sampleToll = EdogPoint(2, 10.77, 106.69, type = 8, speedLimit = 0, dirFlag = 1, angle = 90)
+        assertEquals(listOf("sounds/tram_thu_phi.mp3"), sampleToll.getVoiceMp3AssetPaths())
+        val sampleTunnel = EdogPoint(3, 10.77, 106.69, type = 9, speedLimit = 60, dirFlag = 1, angle = 90)
+        assertEquals(listOf("sounds/vao_duong_ham.mp3"), sampleTunnel.getVoiceMp3AssetPaths())
 
         // Kiểm tra kết nối SQLite và tổng số điểm
         Class.forName("org.sqlite.JDBC")
@@ -262,7 +266,7 @@ class SimulationEngineTest {
                         }
 
                         if (distM in 10.0..450.0 && relAngle <= 42.0 && crossTrackM <= 35.0 && dirOk) {
-                            if (type == 4 || type == 9 || type == 12) {
+                            if (type == 10 || type == 11 || type == 12) {
                                 detectedCameras.add("ID=$id (Type=$type, Limit=$speedLimit) tại ($pLat, $pLon)")
                             }
                         }

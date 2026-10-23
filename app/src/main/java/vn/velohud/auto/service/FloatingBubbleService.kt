@@ -338,7 +338,7 @@ class FloatingBubbleService : Service(), LocationListener {
             ACTION_RESET_SIMULATION -> {
                 simRouteIndex = 0
                 simSubStep = 0.0
-                spatialEngine.resetLatchedState(60)
+                spatialEngine.resetLatchedState(50)
                 audioManager.resetHistory()
             }
         }
@@ -624,7 +624,7 @@ class FloatingBubbleService : Service(), LocationListener {
 
         if (isSimulationMode) {
             lastSpeedSource = "DEBUG_SIM_30KM"
-            spatialEngine.resetLatchedState(60)
+            spatialEngine.resetLatchedState(50)
             audioManager.resetHistory()
             mainHandler.post(simulationRunnable)
             updateForegroundNotification("VeloHUD • [DEBUG] Giả lập 30km")
@@ -632,7 +632,7 @@ class FloatingBubbleService : Service(), LocationListener {
         } else {
             isDebugGpsInjected = false
             speedCalculator.reset()
-            spatialEngine.resetLatchedState(60)
+            spatialEngine.resetLatchedState(50)
             audioManager.resetHistory()
             currentSpeedKmh = 0
             lastSpeedSource = "REAL_GPS_INIT"
@@ -754,7 +754,7 @@ class FloatingBubbleService : Service(), LocationListener {
         }
         if (intent.getBooleanExtra("reset_calc", false)) {
             speedCalculator.reset()
-            spatialEngine.resetLatchedState(60)
+            spatialEngine.resetLatchedState(50)
             audioManager.resetHistory()
         }
         val customScale = intent.getIntExtra("scale_pct", -1)
@@ -949,15 +949,15 @@ class FloatingBubbleService : Service(), LocationListener {
             1 -> "Biển ${alert.speedLimit}"
             2 -> "Khu dân cư"
             3 -> "Hết KDC"
-            4 -> if (alert.speedLimit > 0) "Cam ${alert.speedLimit}" else "Cam phạt nguội"
+            4 -> "Giảm tốc"
             5 -> "Cấm vượt"
             6 -> "Hết cấm vượt"
-            7 -> "Trạm ETC"
-            8 -> "Đường hầm"
-            9 -> "Cam giám sát"
-            10 -> "Đường sắt"
-            11 -> "Giao lộ"
-            12 -> "Đèn tín hiệu"
+            7 -> if (alert.speedLimit >= 80) "Kiểm tra ${alert.speedLimit}" else "Đường sắt"
+            8 -> "Trạm ETC"
+            9 -> "Đường hầm"
+            10 -> if (alert.speedLimit > 0) "Cam ${alert.speedLimit}" else "Cam phạt nguội"
+            11 -> if (alert.speedLimit > 0) "Cam GT ${alert.speedLimit}" else "Cam giám sát"
+            12 -> "Camera AI"
             else -> "Chú ý"
         }
     }
