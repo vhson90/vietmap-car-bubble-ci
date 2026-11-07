@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootBubbleContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bubble_pill"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="5dp"
+    android:paddingTop="5dp"
+    android:paddingEnd="7dp"
+    android:paddingBottom="5dp">
+
+    <!-- Cụm 1: Đồng hồ tốc độ thực tế GPS (48dp x 48dp) -->
+    <LinearLayout
+        android:id="@+id/speedCircleContainer"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_speedometer_normal"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvCurrentSpeed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="0"
+            android:textColor="#38BDF8"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSpeedUnit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="km/h"
+            android:textColor="#94A3B8"
+            android:textSize="8sp" />
+    </LinearLayout>
+
+    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (44dp x 44dp) -->
+    <FrameLayout
+        android:id="@+id/signCircleContainer"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="4dp">
+
+        <ImageView
+            android:id="@+id/ivSpeedLimitSign"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:contentDescription="Biển báo tốc độ giới hạn"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
+    <!-- Cụm 3: Panel Cảnh báo Biển báo/Camera + Chỉ đường Maps Turn-by-Turn -->
+    <LinearLayout
+        android:id="@+id/alertExpandPanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="4dp"
+        android:visibility="visible">
+
+        <ImageView
+            android:id="@+id/ivUpcomingAlertIcon"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="4dp"
+            android:contentDescription="Biển báo phía trước"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvBubbleManeuverBadge"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/bg_dashboard_card"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="↱"
+            android:textColor="#38BDF8"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/alertTextContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvUpcomingAlertDistance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxWidth="165dp"
+                android:maxLines="1"
+                android:text="180m • Hầm Thủ Thiêm"
+                android:textColor="#38BDF8"
+                android:textSize="11.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvUpcomingAlertName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxWidth="165dp"
+                android:maxLines="1"
+                android:text="Đường Lê Lợi • Còn 14.2km"
+                android:textColor="#CBD5E1"
+                android:textSize="9.5sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnBubbleBackHome"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_dashboard_card"
+            android:gravity="center"
+            android:text="⌂"
+            android:textColor="#38BDF8"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>
