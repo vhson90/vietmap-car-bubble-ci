@@ -1,4 +1,4 @@
-﻿package vn.zestech.launcher.engine
+package vn.zestech.launcher.engine
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -312,7 +312,7 @@ class OfflineSpatialEngine(private val context: Context) {
             adaptiveLookaheadMeters = adaptiveMaxScanM.roundToInt(),
             currentRoadName = currentRoadName,
             currentAdminArea = currentAdminArea,
-            nearbyPoints = candidates.take(25)
+            nearbyPoints = emptyList()
         )
 
         val minLat = lat - SEARCH_RADIUS_DEG
