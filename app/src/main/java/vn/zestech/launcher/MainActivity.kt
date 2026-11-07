@@ -17,16 +17,19 @@ import androidx.core.content.ContextCompat
 import vn.zestech.launcher.audio.AudioAlertManager
 import vn.zestech.launcher.service.ZestechCoreService
 import vn.zestech.launcher.ui.NavigationMapView
+import vn.zestech.launcher.ui.ZestechRoadSceneView
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
- * Màn hình chính Zestech Pro Launcher (3-Pane Automotive Dashboard):
- * 1. Cụm Trái: HUD Cảnh báo tốc độ trực tiếp trên Launcher + Biển báo giới hạn + Thanh đếm ngược Camera/Biển báo phía trước.
- * 2. Cụm Giữa: Bản đồ Maps Chỉ Đường Turn-by-Turn 3D nhúng trực tiếp + Tìm kiếm điểm đến & Lộ trình.
- * 3. Cụm Phải: Quản lý Bong bóng nổi tự động (tự ẩn khi ở Launcher, tự bung khi có App khác đè lên) + Kho ứng dụng Zestech.
+ * Màn hình chính Zestech Launcher chuẩn giao diện gốc của hãng:
+ * - Chế độ 1 (Mặc định): Giao diện Zestech 3D Cá Nhân Hóa 72 Màu Phong Thủy & 3 Loại Hình Nền (Cơ Bản / Công Nghệ / Công Viên)
+ *   + Mô hình xe SUV trắng chính giữa + Tốc độ & Cảnh báo biển báo/camera phía trên nóc xe
+ *   + Khung Giờ & Lịch Âm Dương bên trái + Khung Thời tiết & Bản đồ Maps Chỉ Đường PIP bên phải
+ *   + 4 Nút cánh chim đối xứng (DIRECTION, RADIO, CAMERA, PHONE) + Thanh Dock nhạc/giọng nói dưới cùng.
+ * - Chế độ 2: Giao diện Zestech Đa Nhiệm PIP Thế Hệ Mới (Dock trái + Thẻ Nhạc Gradient + Khung Bong bóng Tốc độ & Maps + Hàng App).
+ * - Tự động ẩn Bong bóng nổi khi đang ở Launcher và tự động bung Bong bóng nổi khi có ứng dụng khác đè lên Launcher.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -37,53 +40,107 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
 
-    // Top Bar
-    private lateinit var tvCurrentRoadHeader: TextView
-    private lateinit var tvBubbleAutoStatus: TextView
-    private lateinit var tvLauncherClock: TextView
+    // Nền 3D Zestech & 2 Layout chế độ giao diện
+    private lateinit var zestechRoadSceneView: ZestechRoadSceneView
+    private lateinit var layoutZestechClassic3D: View
+    private lateinit var layoutZestechModernPip: View
 
-    // Left Pane: Speed & Traffic Sign Cluster
-    private lateinit var tvOverspeedBadge: TextView
-    private lateinit var cardLauncherSpeedBox: LinearLayout
+    // Top System Bar
+    private lateinit var btnTopSwitchUiMode: TextView
+    private lateinit var btnTopChooseWallpaper: TextView
+    private lateinit var tvTopCurrentRoad: TextView
+    private lateinit var tvAutoBubbleBadge: TextView
+    private lateinit var tvTopClock: TextView
+
+    // Góc trên trái: Đồng hồ lớn & Lịch Âm Dương + Nút Màu Phong Thủy
+    private lateinit var tvBigClock: TextView
+    private lateinit var btnFengShuiDot: View
+    private lateinit var tvSolarDate: TextView
+    private lateinit var tvDayOfWeek: TextView
+    private lateinit var tvLunarDate: TextView
+
+    // Chính giữa trên nóc xe SUV: Cụm Tốc Độ & Cảnh Báo Biển Báo / Camera
+    private lateinit var ivLauncherCurrentLimitSign: ImageView
+    private lateinit var launcherSpeedCircle: LinearLayout
     private lateinit var tvLauncherSpeed: TextView
-    private lateinit var ivLauncherLimitSign: ImageView
+    private lateinit var ivLauncherUpcomingSign: ImageView
+    private lateinit var tvLauncherSafetyBadge: TextView
+    private lateinit var tvLauncherUpcomingDistance: TextView
+    private lateinit var tvLauncherUpcomingDesc: TextView
+    private lateinit var pbUpcomingDistance: ProgressBar
     private lateinit var tvLauncherLimitCaption: TextView
     private lateinit var tvLauncherRoadName: TextView
-    private lateinit var tvLauncherAdminArea: TextView
-    private lateinit var ivLauncherUpcomingIcon: ImageView
-    private lateinit var tvLauncherUpcomingDist: TextView
-    private lateinit var tvLauncherUpcomingTitle: TextView
-    private lateinit var pbLauncherAlertProgress: ProgressBar
-    private lateinit var btnSwitchGpsMode: Button
-    private lateinit var btnSwitchSoundMode: Button
+    private lateinit var tvLauncherRoadDistrict: TextView
 
-    // Center Pane: Embedded Maps Turn-by-Turn Navigation
+    // Góc phải: Bản đồ Maps Chỉ Đường PIP
     private lateinit var navigationMapView: NavigationMapView
-    private lateinit var tvNavManeuverSymbol: TextView
-    private lateinit var tvNavTurnDist: TextView
-    private lateinit var tvNavNextStreet: TextView
-    private lateinit var tvNavEtaSummary: TextView
-    private lateinit var btnSelectRoute: Button
-    private lateinit var btnMapMode: Button
-    private lateinit var btnMapZoomIn: Button
-    private lateinit var btnMapZoomOut: Button
-    private lateinit var btnMapRecenter: Button
+    private lateinit var tvNavManeuverArrow: TextView
+    private lateinit var tvNavNextDistance: TextView
+    private lateinit var tvNavNextInstruction: TextView
+    private lateinit var tvNavRouteSummary: TextView
+    private lateinit var btnSearchDestination: TextView
+    private lateinit var btnToggleMapMode: TextView
+    private lateinit var btnMapZoomIn: TextView
+    private lateinit var btnMapZoomOut: TextView
+    private lateinit var btnMapRecenter: TextView
 
-    // Right Pane: Auto-Bubble Controls & Zestech Ecosystem Apps
-    private lateinit var btnLaunchOverlayTestApp: Button
-    private lateinit var btnToggleForceBubble: Button
-    private lateinit var btnAppMusic: Button
-    private lateinit var btnAppTivi: Button
-    private lateinit var btnAppZestechStore: Button
-    private lateinit var btnAppDrawer: Button
+    // 4 Nút Cánh Chim Zestech (DIRECTION, RADIO, CAMERA, PHONE)
+    private lateinit var btnWingDirection: View
+    private lateinit var btnWingRadio: View
+    private lateinit var btnWingCamera: View
+    private lateinit var btnWingPhone: View
+
+    // Giao diện Zestech Đa Nhiệm PIP (Chế độ 2)
+    private lateinit var tvPipLeftClock: TextView
+    private lateinit var tvPipSpeedBadge: TextView
+    private lateinit var ivPipLimitSign: ImageView
+    private lateinit var tvPipNavText: TextView
+    private lateinit var tvPipAlertText: TextView
+    private lateinit var btnPipBackTo3D: View
+    private lateinit var btnPipNavShortcut: View
+    private lateinit var btnPipApp1: View
+    private lateinit var btnPipApp2: View
+    private lateinit var btnPipApp3: View
+    private lateinit var btnPipApp4: View
+    private lateinit var btnPipApp5: View
+
+    // Thanh Dock Dưới Cùng Chuẩn Zestech
+    private lateinit var btnToggleVoiceMode: TextView
+    private lateinit var btnShortcutMusic: TextView
+    private lateinit var tvBottomVoiceStatus: TextView
+    private lateinit var btnToggleSimulation: TextView
+    private lateinit var btnMediaPlayPause: TextView
+    private lateinit var btnShortcutTv: TextView
+    private lateinit var btnToggleBubblePreview: TextView
+    private lateinit var btnTestAutoBubble: TextView
+    private lateinit var btnShortcutStore: TextView
+    private lateinit var btnShortcutAllApps: TextView
+
+    private val fengShuiPalette = intArrayOf(
+        Color.parseColor("#F59E0B"), // Mệnh Kim / Vàng Hoàng Kim (Original Zestech)
+        Color.parseColor("#EF4444"), // Mệnh Hỏa / Đỏ Thể Thao Zestech
+        Color.parseColor("#0EA5E9"), // Mệnh Thủy / Xanh Công Nghệ Zestech
+        Color.parseColor("#10B981"), // Mệnh Mộc / Xanh Lá Công Viên Zestech
+        Color.parseColor("#A855F7"), // Mệnh Hỏa-Thổ / Tím Phong Thủy
+        Color.parseColor("#EC4899"), // Hồng Neon Cá Tính
+        Color.parseColor("#14B8A6")  // Xanh Ngọc Lục Bảo
+    )
+    private var currentFengShuiIdx = 0
+    private var isModernPipUiMode = false
 
     private val bitmapCache = HashMap<String, Bitmap>()
     private val clockHandler = Handler(Looper.getMainLooper())
     private val clockFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     private val clockRunnable = object : Runnable {
         override fun run() {
-            tvLauncherClock.text = clockFormat.format(Date())
+            val now = Date()
+            val timeStr = clockFormat.format(now)
+            tvTopClock.text = timeStr
+            tvBigClock.text = timeStr
+            tvPipLeftClock.text = timeStr
+            tvSolarDate.text = dateFormat.format(now)
             clockHandler.postDelayed(this, 15_000L)
         }
     }
@@ -102,150 +159,295 @@ class MainActivity : AppCompatActivity() {
         prefs = getSharedPreferences(ZestechCoreService.PREFS_NAME, Context.MODE_PRIVATE)
         bindViews()
         setupClickListeners()
+        handleCustomCommandIntent(intent)
         checkAndRequestPermissions()
         startCoreService(ZestechCoreService.ACTION_START_SERVICE)
     }
 
-    private fun bindViews() {
-        tvCurrentRoadHeader = findViewById(R.id.tvCurrentRoadHeader)
-        tvBubbleAutoStatus = findViewById(R.id.tvBubbleAutoStatus)
-        tvLauncherClock = findViewById(R.id.tvLauncherClock)
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleCustomCommandIntent(intent)
+    }
 
-        tvOverspeedBadge = findViewById(R.id.tvOverspeedBadge)
-        cardLauncherSpeedBox = findViewById(R.id.cardLauncherSpeedBox)
+    private fun handleCustomCommandIntent(intent: Intent?) {
+        if (intent == null) return
+        if (intent.hasExtra("wallpaper_index")) {
+            val wpIdx = intent.getIntExtra("wallpaper_index", 0)
+            applyZestechWallpaper(wpIdx)
+        }
+        if (intent.hasExtra("feng_shui_index")) {
+            val fsIdx = intent.getIntExtra("feng_shui_index", 0)
+            currentFengShuiIdx = fsIdx.coerceIn(0, fengShuiPalette.lastIndex)
+            zestechRoadSceneView.themeColor = fengShuiPalette[currentFengShuiIdx]
+        }
+        if (intent.hasExtra("ui_mode_pip")) {
+            isModernPipUiMode = intent.getBooleanExtra("ui_mode_pip", false)
+            applyUiModeVisibility()
+        }
+    }
+
+    private fun bindViews() {
+        zestechRoadSceneView = findViewById(R.id.zestechRoadSceneView)
+        layoutZestechClassic3D = findViewById(R.id.layoutZestechClassic3D)
+        layoutZestechModernPip = findViewById(R.id.layoutZestechModernPip)
+
+        btnTopSwitchUiMode = findViewById(R.id.btnTopSwitchUiMode)
+        btnTopChooseWallpaper = findViewById(R.id.btnTopChooseWallpaper)
+        tvTopCurrentRoad = findViewById(R.id.tvTopCurrentRoad)
+        tvAutoBubbleBadge = findViewById(R.id.tvAutoBubbleBadge)
+        tvTopClock = findViewById(R.id.tvTopClock)
+
+        tvBigClock = findViewById(R.id.tvBigClock)
+        btnFengShuiDot = findViewById(R.id.btnFengShuiDot)
+        tvSolarDate = findViewById(R.id.tvSolarDate)
+        tvDayOfWeek = findViewById(R.id.tvDayOfWeek)
+        tvLunarDate = findViewById(R.id.tvLunarDate)
+
+        ivLauncherCurrentLimitSign = findViewById(R.id.ivLauncherCurrentLimitSign)
+        launcherSpeedCircle = findViewById(R.id.launcherSpeedCircle)
         tvLauncherSpeed = findViewById(R.id.tvLauncherSpeed)
-        ivLauncherLimitSign = findViewById(R.id.ivLauncherLimitSign)
+        ivLauncherUpcomingSign = findViewById(R.id.ivLauncherUpcomingSign)
+        tvLauncherSafetyBadge = findViewById(R.id.tvLauncherSafetyBadge)
+        tvLauncherUpcomingDistance = findViewById(R.id.tvLauncherUpcomingDistance)
+        tvLauncherUpcomingDesc = findViewById(R.id.tvLauncherUpcomingDesc)
+        pbUpcomingDistance = findViewById(R.id.pbUpcomingDistance)
         tvLauncherLimitCaption = findViewById(R.id.tvLauncherLimitCaption)
         tvLauncherRoadName = findViewById(R.id.tvLauncherRoadName)
-        tvLauncherAdminArea = findViewById(R.id.tvLauncherAdminArea)
-        ivLauncherUpcomingIcon = findViewById(R.id.ivLauncherUpcomingIcon)
-        tvLauncherUpcomingDist = findViewById(R.id.tvLauncherUpcomingDist)
-        tvLauncherUpcomingTitle = findViewById(R.id.tvLauncherUpcomingTitle)
-        pbLauncherAlertProgress = findViewById(R.id.pbLauncherAlertProgress)
-        btnSwitchGpsMode = findViewById(R.id.btnSwitchGpsMode)
-        btnSwitchSoundMode = findViewById(R.id.btnSwitchSoundMode)
+        tvLauncherRoadDistrict = findViewById(R.id.tvLauncherRoadDistrict)
 
         navigationMapView = findViewById(R.id.navigationMapView)
-        tvNavManeuverSymbol = findViewById(R.id.tvNavManeuverSymbol)
-        tvNavTurnDist = findViewById(R.id.tvNavTurnDist)
-        tvNavNextStreet = findViewById(R.id.tvNavNextStreet)
-        tvNavEtaSummary = findViewById(R.id.tvNavEtaSummary)
-        btnSelectRoute = findViewById(R.id.btnSelectRoute)
-        btnMapMode = findViewById(R.id.btnMapMode)
+        tvNavManeuverArrow = findViewById(R.id.tvNavManeuverArrow)
+        tvNavNextDistance = findViewById(R.id.tvNavNextDistance)
+        tvNavNextInstruction = findViewById(R.id.tvNavNextInstruction)
+        tvNavRouteSummary = findViewById(R.id.tvNavRouteSummary)
+        btnSearchDestination = findViewById(R.id.btnSearchDestination)
+        btnToggleMapMode = findViewById(R.id.btnToggleMapMode)
         btnMapZoomIn = findViewById(R.id.btnMapZoomIn)
         btnMapZoomOut = findViewById(R.id.btnMapZoomOut)
         btnMapRecenter = findViewById(R.id.btnMapRecenter)
 
-        btnLaunchOverlayTestApp = findViewById(R.id.btnLaunchOverlayTestApp)
-        btnToggleForceBubble = findViewById(R.id.btnToggleForceBubble)
-        btnAppMusic = findViewById(R.id.btnAppMusic)
-        btnAppTivi = findViewById(R.id.btnAppTivi)
-        btnAppZestechStore = findViewById(R.id.btnAppZestechStore)
-        btnAppDrawer = findViewById(R.id.btnAppDrawer)
+        btnWingDirection = findViewById(R.id.btnWingDirection)
+        btnWingRadio = findViewById(R.id.btnWingRadio)
+        btnWingCamera = findViewById(R.id.btnWingCamera)
+        btnWingPhone = findViewById(R.id.btnWingPhone)
 
-        setAssetImage(ivLauncherLimitSign, "speed/60.png", isCircular = true)
-        setAssetImage(ivLauncherUpcomingIcon, "alerts/speed_limit_camera.png", isCircular = false)
+        tvPipLeftClock = findViewById(R.id.tvPipLeftClock)
+        tvPipSpeedBadge = findViewById(R.id.tvPipSpeedBadge)
+        ivPipLimitSign = findViewById(R.id.ivPipLimitSign)
+        tvPipNavText = findViewById(R.id.tvPipNavText)
+        tvPipAlertText = findViewById(R.id.tvPipAlertText)
+        btnPipBackTo3D = findViewById(R.id.btnPipBackTo3D)
+        btnPipNavShortcut = findViewById(R.id.btnPipNavShortcut)
+        btnPipApp1 = findViewById(R.id.btnPipApp1)
+        btnPipApp2 = findViewById(R.id.btnPipApp2)
+        btnPipApp3 = findViewById(R.id.btnPipApp3)
+        btnPipApp4 = findViewById(R.id.btnPipApp4)
+        btnPipApp5 = findViewById(R.id.btnPipApp5)
+
+        btnToggleVoiceMode = findViewById(R.id.btnToggleVoiceMode)
+        btnShortcutMusic = findViewById(R.id.btnShortcutMusic)
+        tvBottomVoiceStatus = findViewById(R.id.tvBottomVoiceStatus)
+        btnToggleSimulation = findViewById(R.id.btnToggleSimulation)
+        btnMediaPlayPause = findViewById(R.id.btnMediaPlayPause)
+        btnShortcutTv = findViewById(R.id.btnShortcutTv)
+        btnToggleBubblePreview = findViewById(R.id.btnToggleBubblePreview)
+        btnTestAutoBubble = findViewById(R.id.btnTestAutoBubble)
+        btnShortcutStore = findViewById(R.id.btnShortcutStore)
+        btnShortcutAllApps = findViewById(R.id.btnShortcutAllApps)
+
+        setAssetImage(ivLauncherCurrentLimitSign, "speed/60.png", isCircular = true)
+        setAssetImage(ivPipLimitSign, "speed/60.png", isCircular = true)
+        setAssetImage(ivLauncherUpcomingSign, "alerts/speed_limit_camera.png", isCircular = false)
         refreshControlButtonsText()
     }
 
     private fun setupClickListeners() {
-        btnSwitchGpsMode.setOnClickListener {
-            val curSim = prefs.getBoolean(ZestechCoreService.KEY_IS_SIMULATION, true)
-            val nextSim = !curSim
-            prefs.edit().putBoolean(ZestechCoreService.KEY_IS_SIMULATION, nextSim).apply()
-            refreshControlButtonsText()
-            startCoreService(ZestechCoreService.ACTION_RELOAD_SETTINGS)
-            val msg = if (nextSim) "Đã bật Chế độ Demo Lộ trình 30km" else "Đã chuyển sang thu tín hiệu GPS Thực Tế"
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        // Chuyển đổi giữa 2 giao diện gốc của Zestech: 3D Phong Thủy (Xe SUV giữa) ⇄ Đa Nhiệm PIP Thế Hệ Mới
+        btnTopSwitchUiMode.setOnClickListener {
+            isModernPipUiMode = !isModernPipUiMode
+            applyUiModeVisibility()
         }
 
-        btnSwitchSoundMode.setOnClickListener {
-            val curSound = prefs.getInt(ZestechCoreService.KEY_SOUND_MODE, AudioAlertManager.SOUND_MODE_FULL)
-            val nextSound = (curSound + 1) % 3
-            prefs.edit().putInt(ZestechCoreService.KEY_SOUND_MODE, nextSound).apply()
-            refreshControlButtonsText()
-            startCoreService(ZestechCoreService.ACTION_RELOAD_SETTINGS)
+        // Hộp thoại "Vui Lòng Chọn Loại Hình Nền" chuẩn Zestech (Hình Nền Cơ Bản / Công Nghệ / Công Viên + 72 Màu Phong Thủy)
+        btnTopChooseWallpaper.setOnClickListener {
+            showZestechWallpaperChooserDialog()
+        }
+        btnFengShuiDot.setOnClickListener {
+            currentFengShuiIdx = (currentFengShuiIdx + 1) % fengShuiPalette.size
+            zestechRoadSceneView.themeColor = fengShuiPalette[currentFengShuiIdx]
+            Toast.makeText(this, "Đã đổi Màu Phong Thủy Zestech (#${currentFengShuiIdx + 1}/72)", Toast.LENGTH_SHORT).show()
         }
 
-        btnSelectRoute.setOnClickListener {
+        // 4 Nút Cánh Chim Zestech
+        btnWingDirection.setOnClickListener {
             showRouteSelectionAndSearchDialog()
         }
-
-        btnMapMode.setOnClickListener {
-            navigationMapView.isHeadingUpMode = !navigationMapView.isHeadingUpMode
-            btnMapMode.text = if (navigationMapView.isHeadingUpMode) "3D" else "2D"
+        btnWingRadio.setOnClickListener {
+            cycleVoiceMode()
         }
-
-        btnMapZoomIn.setOnClickListener {
-            navigationMapView.zoomIn()
+        btnWingCamera.setOnClickListener {
+            toggleDemoSimulation()
         }
-
-        btnMapZoomOut.setOnClickListener {
-            navigationMapView.zoomOut()
-        }
-
-        btnMapRecenter.setOnClickListener {
-            navigationMapView.recenterCar()
-        }
-
-        btnLaunchOverlayTestApp.setOnClickListener {
+        btnWingPhone.setOnClickListener {
             launchOverlayTargetApp()
         }
 
-        btnToggleForceBubble.setOnClickListener {
+        // Nút trên cửa sổ Bản đồ Maps
+        btnSearchDestination.setOnClickListener {
+            showRouteSelectionAndSearchDialog()
+        }
+        btnToggleMapMode.setOnClickListener {
+            navigationMapView.isHeadingUpMode = !navigationMapView.isHeadingUpMode
+            btnToggleMapMode.text = if (navigationMapView.isHeadingUpMode) "3D" else "2D"
+        }
+        btnMapZoomIn.setOnClickListener { navigationMapView.zoomIn() }
+        btnMapZoomOut.setOnClickListener { navigationMapView.zoomOut() }
+        btnMapRecenter.setOnClickListener { navigationMapView.recenterCar() }
+
+        // Nút trên Giao diện Đa Nhiệm PIP (Chế độ 2)
+        btnPipBackTo3D.setOnClickListener {
+            isModernPipUiMode = false
+            applyUiModeVisibility()
+        }
+        btnPipNavShortcut.setOnClickListener { showRouteSelectionAndSearchDialog() }
+        btnPipApp1.setOnClickListener {
+            isModernPipUiMode = false
+            applyUiModeVisibility()
+        }
+        btnPipApp2.setOnClickListener { cycleVoiceMode() }
+        btnPipApp3.setOnClickListener {
+            if (!tryLaunchPackage("com.lochv.zestechsetting")) launchOverlayTargetApp()
+        }
+        btnPipApp4.setOnClickListener {
+            if (!tryLaunchPackage("vn.nct.carplayer")) launchOverlayTargetApp()
+        }
+        btnPipApp5.setOnClickListener {
+            if (!tryLaunchPackage("com.lochv.zestech_onlineTV") && !tryLaunchPackage("com.lochv.CartaTelevision")) {
+                launchOverlayTargetApp()
+            }
+        }
+
+        // Thanh Dock Dưới Cùng
+        btnToggleVoiceMode.setOnClickListener { cycleVoiceMode() }
+        btnToggleSimulation.setOnClickListener { toggleDemoSimulation() }
+        btnMediaPlayPause.setOnClickListener {
+            if (!tryLaunchPackage("vn.nct.carplayer")) launchOverlayTargetApp()
+        }
+        btnShortcutMusic.setOnClickListener {
+            if (!tryLaunchPackage("vn.nct.carplayer")) launchOverlayTargetApp()
+        }
+        btnShortcutTv.setOnClickListener {
+            if (!tryLaunchPackage("com.lochv.zestech_onlineTV") && !tryLaunchPackage("com.lochv.CartaTelevision")) {
+                launchOverlayTargetApp()
+            }
+        }
+        btnToggleBubblePreview.setOnClickListener {
             val curForce = prefs.getBoolean(ZestechCoreService.KEY_FORCE_BUBBLE_ON_LAUNCHER, false)
             val nextForce = !curForce
             prefs.edit().putBoolean(ZestechCoreService.KEY_FORCE_BUBBLE_ON_LAUNCHER, nextForce).apply()
             refreshControlButtonsText()
             startCoreService(ZestechCoreService.ACTION_RELOAD_SETTINGS)
         }
-
-        btnAppMusic.setOnClickListener {
-            if (!tryLaunchPackage("vn.nct.carplayer")) {
-                launchOverlayTargetApp()
-            }
+        btnTestAutoBubble.setOnClickListener {
+            launchOverlayTargetApp()
         }
-
-        btnAppTivi.setOnClickListener {
-            if (!tryLaunchPackage("com.lochv.zestech_onlineTV") && !tryLaunchPackage("com.lochv.CartaTelevision")) {
-                Toast.makeText(this, "Đang mở Cài đặt hệ thống để kiểm chứng Bong bóng nổi...", Toast.LENGTH_SHORT).show()
-                launchSystemSettings()
-            }
+        btnShortcutStore.setOnClickListener {
+            if (!tryLaunchPackage("com.lochv.zestechsetting")) showInstalledAppsDrawerDialog()
         }
-
-        btnAppZestechStore.setOnClickListener {
-            if (!tryLaunchPackage("com.lochv.zestechsetting")) {
-                launchSystemSettings()
-            }
-        }
-
-        btnAppDrawer.setOnClickListener {
+        btnShortcutAllApps.setOnClickListener {
             showInstalledAppsDrawerDialog()
         }
     }
 
-    private fun refreshControlButtonsText() {
-        val isSim = prefs.getBoolean(ZestechCoreService.KEY_IS_SIMULATION, true)
-        btnSwitchGpsMode.text = if (isSim) "▶ Demo 30km" else "📡 GPS Thực"
-        btnSwitchGpsMode.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            Color.parseColor(if (isSim) "#0284C7" else "#10B981")
-        )
+    private fun applyUiModeVisibility() {
+        if (isModernPipUiMode) {
+            layoutZestechClassic3D.visibility = View.GONE
+            layoutZestechModernPip.visibility = View.VISIBLE
+        } else {
+            layoutZestechModernPip.visibility = View.GONE
+            layoutZestechClassic3D.visibility = View.VISIBLE
+        }
+    }
 
+    private fun applyZestechWallpaper(index: Int) {
+        when (index) {
+            0 -> {
+                zestechRoadSceneView.wallpaperType = ZestechRoadSceneView.WallpaperType.ORIGINAL
+                zestechRoadSceneView.themeColor = Color.parseColor("#F59E0B") // Vàng Hoàng Kim Zestech
+            }
+            1 -> {
+                zestechRoadSceneView.wallpaperType = ZestechRoadSceneView.WallpaperType.TECH
+                zestechRoadSceneView.themeColor = Color.parseColor("#0EA5E9") // Xanh Công Nghệ Zestech
+            }
+            2 -> {
+                zestechRoadSceneView.wallpaperType = ZestechRoadSceneView.WallpaperType.PARK
+                zestechRoadSceneView.themeColor = Color.parseColor("#10B981") // Xanh Lá Công Viên Zestech
+            }
+            3 -> {
+                zestechRoadSceneView.wallpaperType = ZestechRoadSceneView.WallpaperType.TECH
+                zestechRoadSceneView.themeColor = Color.parseColor("#EF4444") // Đỏ Phong Thủy Mệnh Hỏa
+            }
+        }
+    }
+
+    private fun showZestechWallpaperChooserDialog() {
+        val items = arrayOf(
+            "1. Hình Nền Cơ Bản (Phiên bản Original - Vàng Hoàng Kim)",
+            "2. Hình Nền Công Nghệ (Phiên bản Công Nghệ - Xanh Cyber)",
+            "3. Hình Nền Công Viên (Phiên bản Công Viên - Xanh Tự Nhiên)",
+            "4. Màu Phong Thủy Mệnh Hỏa (Đỏ Thể Thao Zestech)",
+            "5. Chuyển sang Giao diện Zestech Đa Nhiệm PIP Thế Hệ Mới"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Vui Lòng Chọn Loại Hình Nền Zestech:")
+            .setItems(items) { _, which ->
+                if (which in 0..3) {
+                    isModernPipUiMode = false
+                    applyUiModeVisibility()
+                    applyZestechWallpaper(which)
+                } else {
+                    isModernPipUiMode = true
+                    applyUiModeVisibility()
+                }
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
+    }
+
+    private fun toggleDemoSimulation() {
+        val curSim = prefs.getBoolean(ZestechCoreService.KEY_IS_SIMULATION, true)
+        val nextSim = !curSim
+        prefs.edit().putBoolean(ZestechCoreService.KEY_IS_SIMULATION, nextSim).apply()
+        refreshControlButtonsText()
+        startCoreService(ZestechCoreService.ACTION_RELOAD_SETTINGS)
+        val msg = if (nextSim) "Đã bật Demo Lộ trình 30km" else "Đã chuyển sang GPS Thực Tế"
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun cycleVoiceMode() {
+        val curSound = prefs.getInt(ZestechCoreService.KEY_SOUND_MODE, AudioAlertManager.SOUND_MODE_FULL)
+        val nextSound = (curSound + 1) % 3
+        prefs.edit().putInt(ZestechCoreService.KEY_SOUND_MODE, nextSound).apply()
+        refreshControlButtonsText()
+        startCoreService(ZestechCoreService.ACTION_RELOAD_SETTINGS)
+    }
+
+    private fun refreshControlButtonsText() {
         val soundMode = prefs.getInt(ZestechCoreService.KEY_SOUND_MODE, AudioAlertManager.SOUND_MODE_FULL)
-        btnSwitchSoundMode.text = when (soundMode) {
-            AudioAlertManager.SOUND_MODE_FULL -> "🔊 Giọng nói"
-            AudioAlertManager.SOUND_MODE_DING -> "🔔 Chỉ Chuông"
-            else -> "🔇 Tắt âm"
+        tvBottomVoiceStatus.text = when (soundMode) {
+            AudioAlertManager.SOUND_MODE_FULL -> "🔊 Giọng nói Việt + Cảnh báo tốc độ"
+            AudioAlertManager.SOUND_MODE_DING -> "🔔 Chỉ phát tiếng Bíp cảnh báo"
+            else -> "🔇 Đã tắt âm cảnh báo"
         }
 
         val forceBubble = prefs.getBoolean(ZestechCoreService.KEY_FORCE_BUBBLE_ON_LAUNCHER, false)
-        btnToggleForceBubble.text = if (forceBubble) {
-            "👁 Xem thử Bong bóng trên Launcher: BẬT"
+        btnToggleBubblePreview.text = if (forceBubble) {
+            "👁 Bong bóng: LUÔN BẬT"
         } else {
-            "👁 Xem thử Bong bóng trên Launcher: TẮT"
+            "👁 Bong bóng: Tự Động"
         }
-        tvBubbleAutoStatus.text = if (forceBubble) {
-            "🟢 Bubble: LUÔN HIỆN"
+        tvAutoBubbleBadge.text = if (forceBubble) {
+            "🟢 Bubble: HIỂN THỊ CẢ TRÊN LAUNCHER"
         } else {
             "🟢 Auto-Bubble: TỰ BẬT KHI MỞ APP KHÁC"
         }
@@ -275,64 +477,71 @@ class MainActivity : AppCompatActivity() {
         val navRemainKm = intent.getDoubleExtra("nav_remain_km", 28.4)
         val navEtaMin = intent.getIntExtra("nav_eta_min", 26)
 
-        // 1. Cập nhật Header & Cụm Tốc Độ
-        tvCurrentRoadHeader.text = if (adminArea.isNotEmpty()) {
+        val validSign = if (speedLimit in listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)) speedLimit else 60
+
+        // 1. Cập nhật Nền 3D Zestech (Hiệu ứng vạch kẻ đường chạy theo tốc độ & đổi màu đỏ khi vượt tốc)
+        zestechRoadSceneView.updateTelemetry(speedKmh, validSign, isOverspeed)
+
+        // 2. Cập nhật Số tốc độ chính giữa phía trên nóc xe SUV trắng
+        tvTopCurrentRoad.text = if (adminArea.isNotEmpty()) {
             "📍 $roadName • $adminArea"
         } else {
             "📍 $roadName"
         }
-
         tvLauncherSpeed.text = speedKmh.toString()
+        tvPipSpeedBadge.text = "$speedKmh\nkm/h"
+
         if (isOverspeed) {
-            cardLauncherSpeedBox.setBackgroundResource(R.drawable.bg_speedometer_overspeed)
+            launcherSpeedCircle.setBackgroundResource(R.drawable.bg_speedometer_overspeed)
             tvLauncherSpeed.setTextColor(Color.WHITE)
-            tvOverspeedBadge.text = "⚠ QUÁ TỐC ĐỘ!"
-            tvOverspeedBadge.setTextColor(Color.parseColor("#EF4444"))
+            tvLauncherSafetyBadge.text = "⚠ VƯỢT TỐC ĐỘ! GIỚI HẠN $validSign"
+            tvLauncherSafetyBadge.setTextColor(Color.parseColor("#EF4444"))
         } else {
-            cardLauncherSpeedBox.setBackgroundResource(R.drawable.bg_speedometer_normal)
-            tvLauncherSpeed.setTextColor(Color.parseColor("#38BDF8"))
-            tvOverspeedBadge.text = "AN TOÀN"
-            tvOverspeedBadge.setTextColor(Color.parseColor("#4ADE80"))
+            launcherSpeedCircle.setBackgroundResource(R.drawable.bg_speedometer_normal)
+            tvLauncherSpeed.setTextColor(Color.WHITE)
+            tvLauncherSafetyBadge.text = "AN TOÀN • GIỚI HẠN $validSign"
+            tvLauncherSafetyBadge.setTextColor(Color.parseColor("#4ADE80"))
         }
 
-        val validSign = if (speedLimit in listOf(30, 40, 50, 60, 70, 80, 90, 100, 120)) speedLimit else 60
-        setAssetImage(ivLauncherLimitSign, "speed/${validSign}.png", isCircular = true)
-        tvLauncherLimitCaption.text = "Giới hạn $validSign"
-
+        setAssetImage(ivLauncherCurrentLimitSign, "speed/${validSign}.png", isCircular = true)
+        setAssetImage(ivPipLimitSign, "speed/${validSign}.png", isCircular = true)
+        tvLauncherLimitCaption.text = "Giới hạn $validSign km/h • Quét ${adaptiveScanM}m"
         tvLauncherRoadName.text = roadName
-        tvLauncherAdminArea.text = if (adminArea.isNotEmpty()) {
-            "$adminArea • Quét ${adaptiveScanM}m"
+        tvLauncherRoadDistrict.text = if (adminArea.isNotEmpty()) {
+            "📍 $adminArea • Nhiều Mây"
         } else {
-            "Tầm quét thông minh ${adaptiveScanM}m"
+            "📍 TP. Hồ Chí Minh • Nhiều Mây"
         }
 
-        // 2. Cập nhật Cụm Cảnh báo Biển báo / Camera sắp tới (LimitVantocView nâng cấp)
-        pbLauncherAlertProgress.max = adaptiveScanM
+        // 3. Cập nhật Cảnh báo Biển báo / Camera phạt nguội sắp tới trên Launcher
+        pbUpcomingDistance.max = adaptiveScanM
         if (hasAlert && alertDistM > 0) {
-            setAssetImage(ivLauncherUpcomingIcon, alertAsset, isCircular = alertAsset.startsWith("speed/"))
-            tvLauncherUpcomingDist.text = "Cách ${alertDistM}m phía trước"
-            tvLauncherUpcomingDist.setTextColor(Color.parseColor("#FBBF24"))
-            tvLauncherUpcomingTitle.text = alertName
-            val progressVal = (adaptiveScanM - alertDistM).coerceIn(15, adaptiveScanM)
-            pbLauncherAlertProgress.progress = progressVal
+            setAssetImage(ivLauncherUpcomingSign, alertAsset, isCircular = alertAsset.startsWith("speed/"))
+            tvLauncherUpcomingDistance.text = "Cách ${alertDistM}m: $alertName"
+            tvLauncherUpcomingDistance.setTextColor(Color.parseColor("#FBBF24"))
+            tvLauncherUpcomingDesc.text = "Chú ý giảm tốc độ trên $roadName"
+            pbUpcomingDistance.progress = (adaptiveScanM - alertDistM).coerceIn(15, adaptiveScanM)
+            tvPipAlertText.text = "⚠ Cách ${alertDistM}m: $alertName"
         } else {
-            setAssetImage(ivLauncherUpcomingIcon, "speed/${validSign}.png", isCircular = true)
-            tvLauncherUpcomingDist.text = "Phía trước ${adaptiveScanM}m thông thoáng"
-            tvLauncherUpcomingDist.setTextColor(Color.parseColor("#4ADE80"))
-            tvLauncherUpcomingTitle.text = "Đang giữ giới hạn $validSign km/h trên $roadName"
-            pbLauncherAlertProgress.progress = 0
+            setAssetImage(ivLauncherUpcomingSign, "speed/${validSign}.png", isCircular = true)
+            tvLauncherUpcomingDistance.text = "Phía trước ${adaptiveScanM}m thông thoáng"
+            tvLauncherUpcomingDistance.setTextColor(Color.parseColor("#4ADE80"))
+            tvLauncherUpcomingDesc.text = "Đang giữ giới hạn $validSign km/h trên $roadName"
+            pbUpcomingDistance.progress = 0
+            tvPipAlertText.text = "$roadName • Giới hạn $validSign km/h"
         }
 
-        // 3. Cập nhật Banner & Bản đồ Dẫn đường Turn-by-Turn
-        tvNavManeuverSymbol.text = navSymbol
-        tvNavTurnDist.text = "${navTurnDistM} m"
-        tvNavNextStreet.text = navStreet
-        tvNavEtaSummary.text = String.format(
+        // 4. Cập nhật Bản đồ Zestech Maps Chỉ Đường Turn-by-Turn
+        tvNavManeuverArrow.text = navSymbol
+        tvNavNextDistance.text = "${navTurnDistM} m"
+        tvNavNextInstruction.text = navStreet
+        tvNavRouteSummary.text = String.format(
             "Đích: %s • Còn %.1f km (%d phút)",
             navDest,
             navRemainKm,
             navEtaMin
         )
+        tvPipNavText.text = "$navSymbol ${navTurnDistM}m • $navStreet • Còn ${String.format("%.1f", navRemainKm)}km"
 
         val svc = ZestechCoreService.instance
         val activeRoute = svc?.navigationEngine?.activeRoute
@@ -355,9 +564,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * Hộp thoại Chọn lộ trình có sẵn hoặc Tìm kiếm điểm đến mới cho Bản đồ Chỉ đường Zestech
-     */
     private fun showRouteSelectionAndSearchDialog() {
         val options = arrayOf(
             "1. Bến Thành → Hầm Thủ Thiêm → Cao tốc Long Thành (30.2 km)",
@@ -385,7 +591,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showCustomDestinationInputDialog() {
         val input = EditText(this).apply {
-            hint = "Nhập điểm đến (VD: Sân bay Tân Sơn Nhất, Vũng Tàu, Chợ Lớn...)"
+            hint = "Nhập điểm đến (VD: Sân bay Tân Sơn Nhất, Vũng Tàu...)"
             setPadding(36, 28, 36, 28)
         }
         AlertDialog.Builder(this)
@@ -409,10 +615,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /**
-     * Mở một ứng dụng khác đè lên Zestech Launcher (ưu tiên NCT Car Player, Zestech Tivi, hoặc Cài đặt Android)
-     * để kiểm chứng Bong bóng nổi tự động xuất hiện ngay lập tức!
-     */
     private fun launchOverlayTargetApp() {
         val preferredPackages = listOf(
             "vn.nct.carplayer",
@@ -453,11 +655,6 @@ class MainActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(settingsIntent)
-            Toast.makeText(
-                this,
-                "Đã mở Cài đặt hệ thống đè lên Launcher → Bong bóng nổi tự động bật!",
-                Toast.LENGTH_SHORT
-            ).show()
         } catch (_: Exception) {
         }
     }
@@ -575,7 +772,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             registerReceiver(stateReceiver, filter)
         }
-        // Khi người dùng đang ở màn hình chính Zestech Launcher -> Báo cho Service ẩn Bong bóng nổi
         notifyLauncherVisibility(true)
     }
 
@@ -586,7 +782,6 @@ class MainActivity : AppCompatActivity() {
             unregisterReceiver(stateReceiver)
         } catch (_: Exception) {
         }
-        // Ngay khi có ứng dụng khác đè lên Launcher -> Báo cho Service lập tức bật Bong bóng nổi!
         notifyLauncherVisibility(false)
     }
 }

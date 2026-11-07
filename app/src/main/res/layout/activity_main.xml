@@ -1,627 +1,1262 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#060B14"
-    android:orientation="vertical"
-    android:padding="8dp">
+    android:background="#050811">
 
-    <!-- THANH TRẠNG THÁI ĐẦU MÀN HÌNH ZESTECH LAUNCHER -->
+    <!-- 1. LỚP NỀN 3D ZESTECH LAUNCHER: Thành phố + Cao tốc 3D + Xe SUV trắng + 72 Màu Phong Thủy -->
+    <vn.zestech.launcher.ui.ZestechRoadSceneView
+        android:id="@+id/zestechRoadSceneView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 2. BỐ CỤC CHÍNH ZESTECH LAUNCHER -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:background="@drawable/bg_dashboard_card"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvHeaderTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚡ ZESTECH PRO LAUNCHER"
-            android:textColor="#38BDF8"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvCurrentRoadHeader"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="📍 Đường Lê Lợi • Quận 1, TP. Hồ Chí Minh"
-            android:textColor="#E2E8F0"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvBubbleAutoStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
-            android:text="🟢 Auto-Bubble: BẬT"
-            android:textColor="#4ADE80"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvLauncherClock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="08:30"
-            android:textColor="#F8FAFC"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- KHU VỰC CHÍNH 3 CỘT CHUẨN MÀN HÌNH Ô TÔ ZESTECH ZX10 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="6dp"
-        android:layout_weight="1"
-        android:baselineAligned="false"
-        android:orientation="horizontal">
-
-        <!-- ================= CỘT 1 (TRÁI - 29%): CỤM CẢNH BÁO TỐC ĐỘ & BIỂN BÁO TRỰC TIẾP ================= -->
+        <!-- THANH TRẠNG THÁI TRÊN CÙNG CHUẨN MÀN HÌNH ZESTECH -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="29"
-            android:background="@drawable/bg_dashboard_card"
-            android:orientation="vertical"
-            android:padding="10dp">
+            android:layout_width="match_parent"
+            android:layout_height="34dp"
+            android:background="#80050914"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="HUD TỐC ĐỘ &amp; BIỂN BÁO"
-                    android:textColor="#94A3B8"
-                    android:textSize="10.5sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvOverspeedBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
-                    android:text="AN TOÀN"
-                    android:textColor="#4ADE80"
-                    android:textSize="10.5sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- Cụm Đồng Hồ ODO Số + Biển Giới Hạn Hiện Hành -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:id="@+id/cardLauncherSpeedBox"
-                    android:layout_width="0dp"
-                    android:layout_height="92dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_speedometer_normal"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvLauncherSpeed"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:includeFontPadding="false"
-                        android:text="0"
-                        android:textColor="#38BDF8"
-                        android:textSize="40sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:includeFontPadding="false"
-                        android:text="KM/H"
-                        android:textColor="#94A3B8"
-                        android:textSize="10sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:id="@+id/ivLauncherLimitSign"
-                        android:layout_width="70dp"
-                        android:layout_height="70dp"
-                        android:contentDescription="Biển giới hạn tốc độ"
-                        android:scaleType="fitCenter" />
-
-                    <TextView
-                        android:id="@+id/tvLauncherLimitCaption"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
-                        android:text="Giới hạn 60"
-                        android:textColor="#F8FAFC"
-                        android:textSize="10.5sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Thông tin tên đường & khu vực hành chính -->
             <TextView
-                android:id="@+id/tvLauncherRoadName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="Đường Lê Lợi"
-                android:textColor="#38BDF8"
-                android:textSize="13sp"
+                android:id="@+id/btnTopBack"
+                android:layout_width="28dp"
+                android:layout_height="26dp"
+                android:gravity="center"
+                android:text="◁"
+                android:textColor="#E2E8F0"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/btnTopHome"
+                android:layout_width="32dp"
+                android:layout_height="26dp"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                android:text="⌂"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvLauncherAdminArea"
-                android:layout_width="match_parent"
+                android:id="@+id/btnTopSwitchUiMode"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_zestech_glass_widget"
+                android:gravity="center"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="❐ Đổi UI: Zestech 3D Phong Thủy ⇄ Đa Nhiệm PIP"
+                android:textColor="#FACC15"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnTopChooseWallpaper"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_zestech_glass_widget"
+                android:gravity="center"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="🎨 Hình Nền &amp; 72 Màu Phong Thủy"
+                android:textColor="#38BDF8"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTopCurrentRoad"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Quận 1, TP. Hồ Chí Minh • Tầm quét 330m"
-                android:textColor="#94A3B8"
+                android:text="📍 Đường Lê Lợi • Quận 1, TP. Hồ Chí Minh"
+                android:textColor="#F8FAFC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvAutoBubbleBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="🟢 Auto-Bubble: TỰ BẬT KHI MỞ APP KHÁC"
+                android:textColor="#4ADE80"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:text="4G ▊▊▊  ✡  📍  🔋 13.2V"
+                android:textColor="#E2E8F0"
                 android:textSize="10.5sp" />
 
-            <!-- Cụm Cảnh báo Biển báo / Camera sắp tới (Nâng cấp từ LimitVantocView của Zestech) -->
+            <TextView
+                android:id="@+id/tvTopClock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12:45"
+                android:textColor="#FFFFFF"
+                android:textSize="12.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- ========================================================================= -->
+        <!-- CHẾ ĐỘ 1 (MẶC ĐỊNH): GIAO DIỆN GỐC ZESTECH LAUNCHER 3D 72 MÀU PHONG THỦY -->
+        <!-- ========================================================================= -->
+        <RelativeLayout
+            android:id="@+id/layoutZestechClassic3D"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            android:visibility="visible">
+
+            <!-- GÓC TRÊN TRÁI: Khung Đồng Hồ Lớn & Lịch Âm Dương chuẩn Zestech -->
             <LinearLayout
-                android:id="@+id/cardUpcomingAlertBox"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="8dp"
-                android:layout_weight="1"
-                android:background="#111C30"
-                android:gravity="center_vertical"
+                android:id="@+id/widgetZestechClock"
+                android:layout_width="235dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentTop="true"
+                android:background="@drawable/bg_zestech_glass_widget"
+                android:gravity="center_horizontal"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:paddingStart="14dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp">
 
                 <TextView
+                    android:id="@+id/tvBigClock"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="CẢNH BÁO PHÍA TRƯỚC (EDOG / CAMERA)"
-                    android:textColor="#94A3B8"
-                    android:textSize="9.5sp"
-                    android:textStyle="bold" />
+                    android:includeFontPadding="false"
+                    android:text="14:17"
+                    android:textColor="#F8FAFC"
+                    android:textSize="40sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <!-- Cột Nút Đổi Màu Phong Thủy -->
+                    <View
+                        android:id="@+id/btnFengShuiDot"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="10dp"
+                        android:background="@drawable/bg_zestech_mic_circle" />
+
+                    <!-- Cột Ngày Dương Lịch -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvSolarDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="07/11/2026"
+                            android:textColor="#E2E8F0"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvDayOfWeek"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Thứ Bảy"
+                            android:textColor="#CBD5E1"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="28dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:background="#66FFFFFF" />
+
+                    <!-- Cột Ngày Âm Lịch -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvLunarDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="28/09"
+                            android:textColor="#E2E8F0"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Âm lịch"
+                            android:textColor="#CBD5E1"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- CHÍNH GIỮA PHÍA TRÊN NÓC XE SUV: Số Tốc Độ Lớn Zestech + Tích Hợp Cảnh Báo Tốc Độ & Biển Báo -->
+            <LinearLayout
+                android:id="@+id/centerSpeedAndAlertCluster"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="4dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <!-- Hàng 1: Số tốc độ lớn chính giữa + Biển báo tốc độ hiện tại + Biển báo sắp tới -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <ImageView
-                        android:id="@+id/ivLauncherUpcomingIcon"
-                        android:layout_width="42dp"
-                        android:layout_height="42dp"
-                        android:contentDescription="Biển báo sắp tới"
-                        android:scaleType="fitCenter" />
+                    <!-- Biển báo giới hạn tốc độ hiện tại (Chuẩn Quốc quy) -->
+                    <FrameLayout
+                        android:layout_width="58dp"
+                        android:layout_height="58dp"
+                        android:layout_marginEnd="14dp">
+
+                        <ImageView
+                            android:id="@+id/ivLauncherCurrentLimitSign"
+                            android:layout_width="58dp"
+                            android:layout_height="58dp"
+                            android:contentDescription="Biển giới hạn tốc độ"
+                            android:scaleType="fitCenter" />
+                    </FrameLayout>
+
+                    <!-- Số tốc độ lớn chính giữa trên nóc xe (Chuẩn giao diện gốc Zestech) -->
+                    <LinearLayout
+                        android:id="@+id/launcherSpeedCircle"
+                        android:layout_width="115dp"
+                        android:layout_height="88dp"
+                        android:background="@drawable/bg_speedometer_normal"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:id="@+id/tvLauncherSpeed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:shadowColor="#CC000000"
+                            android:shadowDx="0"
+                            android:shadowDy="3"
+                            android:shadowRadius="6"
+                            android:text="0"
+                            android:textColor="#FFFFFF"
+                            android:textSize="44sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:text="km/h"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <!-- Biển báo / Camera phạt nguội phía trước -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:background="@drawable/bg_zestech_glass_widget"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="8dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="6dp">
+
+                        <ImageView
+                            android:id="@+id/ivLauncherUpcomingSign"
+                            android:layout_width="42dp"
+                            android:layout_height="42dp"
+                            android:contentDescription="Biển báo sắp tới"
+                            android:scaleType="fitCenter" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvLauncherSafetyBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="AN TOÀN • GIỚI HẠN 60"
+                                android:textColor="#4ADE80"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvLauncherUpcomingDistance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:maxWidth="150dp"
+                                android:singleLine="true"
+                                android:text="Phía trước thông thoáng"
+                                android:textColor="#FACC15"
+                                android:textSize="11.5sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvLauncherUpcomingDesc"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:maxWidth="150dp"
+                                android:singleLine="true"
+                                android:text="Đang giữ tốc độ chuẩn"
+                                android:textColor="#CBD5E1"
+                                android:textSize="9.5sp" />
+
+                            <ProgressBar
+                                android:id="@+id/pbUpcomingDistance"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="140dp"
+                                android:layout_height="4dp"
+                                android:layout_marginTop="3dp"
+                                android:max="500"
+                                android:progress="0"
+                                android:progressTint="#FACC15" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Dòng phụ đề trạng thái giới hạn tốc độ -->
+                <TextView
+                    android:id="@+id/tvLauncherLimitCaption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:shadowColor="#FF000000"
+                    android:shadowRadius="4"
+                    android:text="Giới hạn 60 km/h"
+                    android:textColor="#F8FAFC"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- GÓC TRÊN PHẢI: Khung Thời Tiết Zestech (30°C • Ha Noi / TP.HCM) + Cửa Sổ Bản Đồ Maps Chỉ Đường PIP -->
+            <LinearLayout
+                android:id="@+id/rightWeatherAndMapColumn"
+                android:layout_width="270dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:orientation="vertical">
+
+                <!-- Khung Thời Tiết Chuẩn Zestech -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_zestech_glass_widget"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="6dp">
 
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
                         android:layout_weight="1"
                         android:orientation="vertical">
 
                         <TextView
-                            android:id="@+id/tvLauncherUpcomingDist"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Đang quét 330m phía trước..."
-                            android:textColor="#FBBF24"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvLauncherUpcomingTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:text="Đường thông thoáng, an toàn"
-                            android:textColor="#E2E8F0"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-                </LinearLayout>
-
-                <ProgressBar
-                    android:id="@+id/pbLauncherAlertProgress"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp"
-                    android:layout_marginTop="6dp"
-                    android:max="450"
-                    android:progress="120"
-                    android:progressTint="#FBBF24" />
-            </LinearLayout>
-
-            <!-- Hàng nút điều khiển Chế độ GPS & Âm thanh cảnh báo -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="36dp"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnSwitchGpsMode"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#0284C7"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="2dp"
-                    android:text="▶ Demo 30km"
-                    android:textAllCaps="false"
-                    android:textColor="#FFFFFF"
-                    android:textSize="10.5sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnSwitchSoundMode"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#1E293B"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="2dp"
-                    android:text="🔊 Giọng nói"
-                    android:textAllCaps="false"
-                    android:textColor="#E2E8F0"
-                    android:textSize="10.5sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ================= CỘT 2 (GIỮA - 45%): BẢN ĐỒ MAPS CHỈ ĐƯỜNG NHÚNG TRỰC TIẾP ================= -->
-        <FrameLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="6dp"
-            android:layout_weight="45"
-            android:background="@drawable/bg_dashboard_card"
-            android:padding="3dp">
-
-            <vn.zestech.launcher.ui.NavigationMapView
-                android:id="@+id/navigationMapView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-            <!-- BANNER DẪN ĐƯỜNG TURN-BY-TURN PHÍA TRÊN BẢN ĐỒ -->
-            <LinearLayout
-                android:id="@+id/cardTurnByTurnBanner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top"
-                android:layout_margin="6dp"
-                android:background="#E60B1528"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="8dp">
-
-                <TextView
-                    android:id="@+id/tvNavManeuverSymbol"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="#0284C7"
-                    android:gravity="center"
-                    android:text="↱"
-                    android:textColor="#FFFFFF"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/tvNavTurnDist"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="180 m"
-                            android:textColor="#38BDF8"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvNavNextStreet"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:layout_weight="1"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:text="Hầm vượt sông Sài Gòn (Thủ Thiêm)"
+                            android:includeFontPadding="false"
+                            android:text="30°C"
                             android:textColor="#FFFFFF"
-                            android:textSize="13sp"
+                            android:textSize="24sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvLauncherRoadDistrict"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true"
+                            android:text="📍 TP. Hồ Chí Minh • Nhiều Mây"
+                            android:textColor="#E2E8F0"
+                            android:textSize="10sp" />
                     </LinearLayout>
 
                     <TextView
-                        android:id="@+id/tvNavEtaSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⛅"
+                        android:textSize="28sp" />
+                </LinearLayout>
+
+                <!-- CỬA SỐ BẢN ĐỒ ZESTECH MAPS CHỈ ĐƯỜNG TÍCH HỢP TRÊN LAUNCHER -->
+                <FrameLayout
+                    android:id="@+id/cardEmbeddedMapPip"
+                    android:layout_width="match_parent"
+                    android:layout_height="152dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_zestech_glass_widget"
+                    android:padding="2dp">
+
+                    <vn.zestech.launcher.ui.NavigationMapView
+                        android:id="@+id/navigationMapView"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <!-- Banner Turn-by-Turn nhỏ gọn trên đỉnh cửa sổ Maps -->
+                    <LinearLayout
+                        android:id="@+id/navBannerHeader"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:text="Đích: Cao tốc Long Thành • Còn 28.4 km (26 phút)"
-                        android:textColor="#94A3B8"
-                        android:textSize="10.5sp" />
-                </LinearLayout>
+                        android:layout_gravity="top"
+                        android:background="#CC091326"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="6dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="4dp">
+
+                        <TextView
+                            android:id="@+id/tvNavManeuverArrow"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#0284C7"
+                            android:gravity="center"
+                            android:text="↱"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/tvNavNextDistance"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="250 m"
+                                    android:textColor="#38BDF8"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tvNavNextInstruction"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:text="Rẽ phải vào Võ Văn Kiệt"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="10.5sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tvNavRouteSummary"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="Đích: Cao tốc Long Thành • Còn 18.4 km"
+                                android:textColor="#CBD5E1"
+                                android:textSize="9sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Thanh nút điều khiển dưới đáy bản đồ Maps -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:background="#B3060C1A"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="3dp">
+
+                        <TextView
+                            android:id="@+id/btnSearchDestination"
+                            android:layout_width="0dp"
+                            android:layout_height="22dp"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="🔍 Đổi lộ trình Maps"
+                            android:textColor="#38BDF8"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnToggleMapMode"
+                            android:layout_width="28dp"
+                            android:layout_height="22dp"
+                            android:gravity="center"
+                            android:text="3D"
+                            android:textColor="#F8FAFC"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnMapZoomIn"
+                            android:layout_width="24dp"
+                            android:layout_height="22dp"
+                            android:gravity="center"
+                            android:text="+"
+                            android:textColor="#F8FAFC"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnMapZoomOut"
+                            android:layout_width="24dp"
+                            android:layout_height="22dp"
+                            android:gravity="center"
+                            android:text="-"
+                            android:textColor="#F8FAFC"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/btnMapRecenter"
+                            android:layout_width="24dp"
+                            android:layout_height="22dp"
+                            android:gravity="center"
+                            android:text="⊕"
+                            android:textColor="#38BDF8"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </FrameLayout>
             </LinearLayout>
 
-            <!-- THANH ĐIỀU KHIỂN BẢN ĐỒ & CHỌN ĐIỂM ĐẾN PHÍA DƯỚI BẢN ĐỒ -->
+            <!-- 4 NÚT CÁNH CHIM VÁT CHÉO ĐỐI XỨNG HAI BÊN XE SUV (ĐẶC TRƯNG ZESTECH LAUNCHER) -->
+            <!-- Cánh Trái: DIRECTION & RADIO -->
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="175dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:layout_margin="6dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnSelectRoute"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#0F172A"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:text="🔍 Tìm đường / Đổi lộ trình Maps"
-                    android:textAllCaps="false"
-                    android:textColor="#38BDF8"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnMapMode"
-                    android:layout_width="44dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:backgroundTint="#1E293B"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="0dp"
-                    android:text="3D"
-                    android:textAllCaps="false"
-                    android:textColor="#F8FAFC"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnMapZoomIn"
-                    android:layout_width="38dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:backgroundTint="#1E293B"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="0dp"
-                    android:text="+"
-                    android:textColor="#F8FAFC"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnMapZoomOut"
-                    android:layout_width="38dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:backgroundTint="#1E293B"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="0dp"
-                    android:text="-"
-                    android:textColor="#F8FAFC"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/btnMapRecenter"
-                    android:layout_width="38dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:backgroundTint="#0284C7"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="0dp"
-                    android:text="⊕"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <!-- ================= CỘT 3 (PHẢI - 26%): BONG BÓNG NỔI TỰ ĐỘNG & KHO ỨNG DỤNG XE ================= -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="26"
-            android:background="@drawable/bg_dashboard_card"
-            android:orientation="vertical"
-            android:padding="10dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="BONG BÓNG NỔI TỰ ĐỘNG (OVERLAY)"
-                android:textColor="#94A3B8"
-                android:textSize="10.5sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvBubbleExplain"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Tự động ẩn trên Launcher và lập tức bung nổi khi có App khác đè lên."
-                android:textColor="#CBD5E1"
-                android:textSize="10sp" />
-
-            <!-- Nút Mở Ứng Dụng Khác Đè Lên Launcher Để Kích Hoạt Bong Bóng Nổi -->
-            <Button
-                android:id="@+id/btnLaunchOverlayTestApp"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:layout_marginTop="6dp"
-                android:backgroundTint="#10B981"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:text="🚀 Mở App Khác (Bật Bong Bóng)"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnToggleForceBubble"
-                android:layout_width="match_parent"
-                android:layout_height="34dp"
-                android:layout_marginTop="5dp"
-                android:backgroundTint="#1E293B"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:text="👁 Xem thử Bong bóng trên Launcher: TẮT"
-                android:textAllCaps="false"
-                android:textColor="#38BDF8"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="TIỆN ÍCH &amp; ỨNG DỤNG ZESTECH"
-                android:textColor="#94A3B8"
-                android:textSize="10.5sp"
-                android:textStyle="bold" />
-
-            <!-- Lưới 4 Phím Tắt Nhanh Ứng Dụng Trên Xe -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="6dp"
-                android:layout_weight="1"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentBottom="true"
+                android:layout_marginStart="18dp"
+                android:layout_marginBottom="46dp"
                 android:orientation="vertical">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:orientation="horizontal">
+                    android:id="@+id/btnWingDirection"
+                    android:layout_width="155dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_zestech_wing_button"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
 
-                    <Button
-                        android:id="@+id/btnAppMusic"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginEnd="4dp"
-                        android:layout_weight="1"
-                        android:backgroundTint="#111C30"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:text="🎵 Nhạc NCT Car"
-                        android:textAllCaps="false"
-                        android:textColor="#F8FAFC"
-                        android:textSize="10.5sp"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⌲"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <Button
-                        android:id="@+id/btnAppTivi"
+                    <TextView
                         android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="4dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
                         android:layout_weight="1"
-                        android:backgroundTint="#111C30"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:text="📺 Zestech TV"
-                        android:textAllCaps="false"
-                        android:textColor="#F8FAFC"
-                        android:textSize="10.5sp"
+                        android:text="DIRECTION"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12.5sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_marginTop="6dp"
-                    android:layout_weight="1"
-                    android:orientation="horizontal">
+                    android:id="@+id/btnWingRadio"
+                    android:layout_width="155dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="18dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_zestech_wing_button"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
 
-                    <Button
-                        android:id="@+id/btnAppZestechStore"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginEnd="4dp"
-                        android:layout_weight="1"
-                        android:backgroundTint="#111C30"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:text="⚙ ZT Store"
-                        android:textAllCaps="false"
-                        android:textColor="#F8FAFC"
-                        android:textSize="10.5sp"
-                        android:textStyle="bold" />
-
-                    <Button
-                        android:id="@+id/btnAppDrawer"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_marginStart="4dp"
-                        android:layout_weight="1"
-                        android:backgroundTint="#0284C7"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:text="⊞ Kho App"
-                        android:textAllCaps="false"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📻"
                         android:textColor="#FFFFFF"
-                        android:textSize="10.5sp"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="RADIO"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12.5sp"
                         android:textStyle="bold" />
                 </LinearLayout>
             </LinearLayout>
+
+            <!-- Cánh Phải (Đối xứng bên phải xe): CAMERA & PHONE -->
+            <LinearLayout
+                android:layout_width="175dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_marginEnd="14dp"
+                android:layout_marginBottom="46dp"
+                android:layout_toStartOf="@id/rightWeatherAndMapColumn"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/btnWingCamera"
+                    android:layout_width="150dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_zestech_wing_button"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📷"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="CAMERA"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btnWingPhone"
+                    android:layout_width="150dp"
+                    android:layout_height="38dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_zestech_wing_button"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📞"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="PHONE"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- DÒNG KIỂM TRA PHẠT NGUỘI & TÊN ĐƯỜNG DƯỚI GẦM XE SUV (Chuẩn Zestech UI 2024) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="4dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvLauncherRoadName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:shadowColor="#FF000000"
+                    android:shadowRadius="6"
+                    android:text="Đường Lê Lợi"
+                    android:textColor="#38BDF8"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:shadowColor="#FF000000"
+                    android:shadowRadius="6"
+                    android:text="kiểm tra phạt nguội 30H98521"
+                    android:textColor="#F8FAFC"
+                    android:textSize="11.5sp" />
+            </LinearLayout>
+
+        </RelativeLayout>
+
+        <!-- ========================================================================= -->
+        <!-- CHẾ ĐỘ 2: GIAO DIỆN ZESTECH ĐA NHIỆM PIP THẾ HỆ MỚI (TÍCH HỢP MAPS & BONG BÓNG) -->
+        <!-- ========================================================================= -->
+        <LinearLayout
+            android:id="@+id/layoutZestechModernPip"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#0B1021"
+            android:orientation="horizontal"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <!-- Thanh Dock dọc bên trái chuẩn Zestech UI Mới -->
+            <LinearLayout
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_zestech_left_sidebar"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp">
+
+                <TextView
+                    android:id="@+id/tvPipLeftClock"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="15:18"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="•••••\n4G"
+                    android:textColor="#BAE6FD"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/btnPipVoiceCircle"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_zestech_mic_circle" />
+
+                <TextView
+                    android:id="@+id/btnPipBackTo3D"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="⚙"
+                    android:textColor="#E2E8F0"
+                    android:textSize="20sp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/btnPipNavShortcut"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="#10B981"
+                    android:gravity="center"
+                    android:text="⌲"
+                    android:textColor="#FFFFFF"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Phần nội dung bên phải của Giao diện Đa Nhiệm Zestech -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- Hàng trên: Khung Nhạc Gradient + Khung lớn Bong bóng Tốc độ & Bản đồ PIP -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1.35"
+                    android:orientation="horizontal">
+
+                    <!-- Thẻ Nhạc Gradient Xanh-Tím chuẩn ảnh hãng -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0.9"
+                        android:background="@drawable/bg_zestech_music_card_gradient"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="07-11-2026\nThứ Bảy"
+                            android:textColor="#F8FAFC"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:text="Zestech Audio Pro\nKẻ Say Tình 2 - Quốc Thiên"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="40dp"
+                                android:layout_height="36dp"
+                                android:gravity="center"
+                                android:text="⏮"
+                                android:textColor="#FFFFFF"
+                                android:textSize="20sp" />
+
+                            <TextView
+                                android:layout_width="48dp"
+                                android:layout_height="44dp"
+                                android:layout_marginStart="12dp"
+                                android:layout_marginEnd="12dp"
+                                android:gravity="center"
+                                android:text="▶"
+                                android:textColor="#FFFFFF"
+                                android:textSize="26sp" />
+
+                            <TextView
+                                android:layout_width="40dp"
+                                android:layout_height="36dp"
+                                android:gravity="center"
+                                android:text="⏭"
+                                android:textColor="#FFFFFF"
+                                android:textSize="20sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Khung lớn bên phải: Bong bóng cảnh báo giao thông Zestech (như ref5) + Thông tin dẫn đường -->
+                    <FrameLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1.55"
+                        android:background="@drawable/bg_zestech_music_card_gradient"
+                        android:padding="16dp">
+
+                        <!-- Cụm Bong bóng cảnh báo tốc độ Zestech chính giữa (chuẩn ảnh ref5_bong_bong.jpg) -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:background="@drawable/bg_zestech_traffic_pill"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingTop="8dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="8dp">
+
+                            <TextView
+                                android:id="@+id/tvPipSpeedBadge"
+                                android:layout_width="54dp"
+                                android:layout_height="54dp"
+                                android:background="@drawable/bg_zestech_mic_circle"
+                                android:gravity="center"
+                                android:text="58\nkm/h"
+                                android:textColor="#FFFFFF"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <ImageView
+                                android:id="@+id/ivPipLimitSign"
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:layout_marginStart="10dp"
+                                android:contentDescription="Biển báo tốc độ"
+                                android:scaleType="fitCenter" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tvPipNavText"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="↗ 250m • Hầm Thủ Thiêm"
+                                    android:textColor="#38BDF8"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tvPipAlertText"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="Camera phạt nguội • Giới hạn 60 km/h"
+                                    android:textColor="#F8FAFC"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </FrameLayout>
+                </LinearLayout>
+
+                <!-- Hàng dưới: Comment (5 Icon Ứng dụng Zestech) + Khung Radio 87.50 FM -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_weight="0.85"
+                    android:orientation="horizontal">
+
+                    <!-- Cụm 5 Icon Ứng Dụng Zestech -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1.4"
+                        android:background="@drawable/bg_zestech_bottom_dock"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:id="@+id/btnPipApp1"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="🖼\nGiao diện 3D"
+                            android:textColor="#E2E8F0"
+                            android:textSize="10.5sp" />
+
+                        <TextView
+                            android:id="@+id/btnPipApp2"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="🎙\nKiki Auto"
+                            android:textColor="#38BDF8"
+                            android:textSize="10.5sp" />
+
+                        <TextView
+                            android:id="@+id/btnPipApp3"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="🛒\nZestech Store"
+                            android:textColor="#FACC15"
+                            android:textSize="10.5sp" />
+
+                        <TextView
+                            android:id="@+id/btnPipApp4"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="🎵\nNCT Car"
+                            android:textColor="#4ADE80"
+                            android:textSize="10.5sp" />
+
+                        <TextView
+                            android:id="@+id/btnPipApp5"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="📺\nZestech TV"
+                            android:textColor="#F472B6"
+                            android:textSize="10.5sp" />
+                    </LinearLayout>
+
+                    <!-- Cụm Radio 87.50 FM -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="0.9"
+                        android:background="@drawable/bg_zestech_bottom_dock"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Radio"
+                                android:textColor="#94A3B8"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="87.50 FM"
+                                android:textColor="#FFFFFF"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="⏮    ⏭    ☁"
+                                android:textColor="#E2E8F0"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="68dp"
+                            android:layout_height="68dp"
+                            android:background="@drawable/bg_zestech_music_card_gradient"
+                            android:gravity="center"
+                            android:text="ılılı"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
+
+        <!-- ========================================================================= -->
+        <!-- THANH DOCK DƯỚI CÙNG CHUẨN ZESTECH LAUNCHER (Giọng nói + Nhạc + Cài đặt) -->
+        <!-- ========================================================================= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/bg_zestech_bottom_dock"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
+
+            <!-- Nút Sóng Giọng Nói Kiki / Zestech bên trái -->
+            <TextView
+                android:id="@+id/btnToggleVoiceMode"
+                android:layout_width="44dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_zestech_voice_btn"
+                android:gravity="center"
+                android:text="ılılı"
+                android:textColor="#38BDF8"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <!-- Icon Trình Phát Nhạc Zestech + Tên Bài Hát / Trạng Thái -->
+            <TextView
+                android:id="@+id/btnShortcutMusic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="10dp"
+                android:background="#0F172A"
+                android:gravity="center"
+                android:text="▶"
+                android:textColor="#F43F5E"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="175dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvBottomMusicTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Kẻ Say Tình 2 - Quốc Thiên"
+                    android:textColor="#E2E8F0"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvBottomVoiceStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🔊 Giọng nói Việt + Cảnh báo tốc độ"
+                    android:textColor="#94A3B8"
+                    android:textSize="9.5sp" />
+            </LinearLayout>
+
+            <!-- Cụm Nút Điều Khiển Media Chính Giữa Chuẩn Zestech (⏮ ▶ ⏭ 🔀 🔁 🔊) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnToggleSimulation"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/bg_zestech_glass_widget"
+                    android:gravity="center"
+                    android:text="⏮"
+                    android:textColor="#E2E8F0"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/btnMediaPlayPause"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="14dp"
+                    android:layout_marginEnd="14dp"
+                    android:background="@drawable/bg_zestech_mic_circle"
+                    android:gravity="center"
+                    android:text="▶"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnShortcutTv"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:background="@drawable/bg_zestech_glass_widget"
+                    android:gravity="center"
+                    android:text="⏭"
+                    android:textColor="#E2E8F0"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/btnToggleBubblePreview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="14dp"
+                    android:background="@drawable/bg_zestech_glass_widget"
+                    android:gravity="center"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="👁 Bong bóng: Tự Động"
+                    android:textColor="#38BDF8"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnTestAutoBubble"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_btn_emerald"
+                    android:gravity="center"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="🚀 Mở App Khác (Bật Bong Bóng)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Nút ZT Store & Bánh Răng Cài Đặt Góc Dưới Phải Chuẩn Zestech -->
+            <TextView
+                android:id="@+id/btnShortcutStore"
+                android:layout_width="42dp"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_zestech_glass_widget"
+                android:gravity="center"
+                android:text="🛒"
+                android:textColor="#FACC15"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/btnShortcutAllApps"
+                android:layout_width="46dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_zestech_glass_widget"
+                android:gravity="center"
+                android:text="⚙"
+                android:textColor="#CBD5E1"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>

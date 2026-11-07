@@ -3,20 +3,20 @@
     android:id="@+id/rootBubbleContainer"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_bubble_pill"
+    android:background="@drawable/bg_zestech_traffic_pill"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="5dp"
+    android:paddingStart="6dp"
     android:paddingTop="5dp"
-    android:paddingEnd="7dp"
+    android:paddingEnd="8dp"
     android:paddingBottom="5dp">
 
-    <!-- Cụm 1: Đồng hồ tốc độ thực tế GPS (48dp x 48dp) -->
+    <!-- Cụm 1: Vòng tròn xanh Zestech hiển thị tốc độ GPS thực tế + Mic -->
     <LinearLayout
         android:id="@+id/speedCircleContainer"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:background="@drawable/bg_speedometer_normal"
+        android:background="@drawable/bg_zestech_mic_circle"
         android:gravity="center"
         android:orientation="vertical">
 
@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:text="0"
-            android:textColor="#38BDF8"
+            android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -36,27 +36,27 @@
             android:layout_height="wrap_content"
             android:includeFontPadding="false"
             android:text="km/h"
-            android:textColor="#94A3B8"
+            android:textColor="#E0F2FE"
             android:textSize="8sp" />
     </LinearLayout>
 
-    <!-- Cụm 2: Biển báo tốc độ giới hạn hiện tại (44dp x 44dp) -->
+    <!-- Cụm 2: Biển báo tốc độ giới hạn chuẩn Zestech (50dp x 50dp nổi bật như ảnh hãng) -->
     <FrameLayout
         android:id="@+id/signCircleContainer"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_marginStart="4dp">
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginStart="5dp">
 
         <ImageView
             android:id="@+id/ivSpeedLimitSign"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_gravity="center"
             android:contentDescription="Biển báo tốc độ giới hạn"
             android:scaleType="fitCenter" />
     </FrameLayout>
 
-    <!-- Cụm 3: Panel Cảnh báo Biển báo/Camera + Chỉ đường Maps Turn-by-Turn -->
+    <!-- Cụm 3: Biển báo phụ / Camera phía trước + Chỉ đường Maps Turn-by-Turn -->
     <LinearLayout
         android:id="@+id/alertExpandPanel"
         android:layout_width="wrap_content"
@@ -69,9 +69,9 @@
 
         <ImageView
             android:id="@+id/ivUpcomingAlertIcon"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_marginEnd="4dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="5dp"
             android:contentDescription="Biển báo phía trước"
             android:scaleType="fitCenter"
             android:visibility="gone" />
@@ -101,10 +101,10 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:maxWidth="165dp"
+                android:maxWidth="175dp"
                 android:maxLines="1"
                 android:text="180m • Hầm Thủ Thiêm"
-                android:textColor="#38BDF8"
+                android:textColor="#F8FAFC"
                 android:textSize="11.5sp"
                 android:textStyle="bold" />
 
@@ -114,19 +114,19 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
-                android:maxWidth="165dp"
+                android:maxWidth="175dp"
                 android:maxLines="1"
                 android:text="Đường Lê Lợi • Còn 14.2km"
-                android:textColor="#CBD5E1"
+                android:textColor="#BAE6FD"
                 android:textSize="9.5sp" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/btnBubbleBackHome"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/bg_dashboard_card"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="7dp"
+            android:background="@drawable/bg_zestech_voice_btn"
             android:gravity="center"
             android:text="⌂"
             android:textColor="#38BDF8"
